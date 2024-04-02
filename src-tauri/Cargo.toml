@@ -1,0 +1,30 @@
+[package]
+name = "axshow"
+version = "0.0.2"
+description = "AX-Show"
+authors = ["ADLEMX"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1", features = [] }
+
+[dependencies]
+tauri = { version = "1", features = [ "shell-open"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+byteorder = "1.4"
+pkg-config = "0.3.30"
+zeroconf = "0.14.1"
+mdns-sd = "0.10.5"
+log = "0.4.21"
+ctrlc = "3.1.9"
+dashmap = "5.5.3"
+lazy_static = "1.4.0"
+local-ip-address = "0.6.1"
+env_logger = "0.11.3"
+rand = "0.8.5"
+[features]
+# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
