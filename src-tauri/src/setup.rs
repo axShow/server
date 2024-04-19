@@ -1,5 +1,9 @@
+use std::fmt::Error;
 use std::process::{Command, Output};
+use port_scanner::scan_port_addr;
 use serde::{Deserialize, Serialize};
+use wifi_rs::prelude::{Config, Connectivity, WifiConnectionError};
+use wifi_rs::WiFi;
 
 fn get_output(command: &str, args: &[&str]) -> String {
     let output = Command::new(command)
@@ -20,7 +24,7 @@ pub struct Wifi {
     password: String
 }
 #[tauri::command]
-pub fn get_wifis() -> Vec<Wifi> {
+pub fn get_wifis() -> Vec<Wifi>{
     let output = get_output("netsh", &["wlan", "show", "profiles"]);
     let data = String::from(&output);
     let profiles: Vec<&str> = data
@@ -52,4 +56,36 @@ pub fn get_wifis() -> Vec<Wifi> {
         }
     }
     result
+}
+// #[tauri::command]
+// pub fn scan_wifis() -> Vec<wifiscanner::Wifi> {
+//     match scan() {
+//         Ok(wifis) => {
+//             wifis
+//         }
+//         Err(err) => {
+//             println!("error: {:?}", err);
+//             Vec::new()
+//         }
+//     }
+// }
+#[tauri::command]
+pub fn connect_to_wifi(ssid: String, pass: String) -> Result<String, String> {
+    let mut wifi = WiFi::new(None);
+    let result = match wifi.connect(&*ssid, &*pass) {
+        Ok(result) => {
+            if result == true {
+                Ok("Connection Successful".to_string())
+            } else {
+                Err("Invalid password".to_string())
+            }
+        }
+        Err(err) => Err(format!("Error: {:?}", err).to_string())
+    };
+
+    result
+}
+#[tauri::command]
+pub fn is_clover_connected() -> bool {
+    scan_port_addr("192.168.11.1:80")
 }

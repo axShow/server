@@ -11,7 +11,7 @@ fn greet(name: &str) -> String {
 }
 
 
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, TcpListener, TcpStream};
 use std::thread;
 use std::io::{Read, Write};
 use std::sync::{Arc};
@@ -25,19 +25,23 @@ use std::io::Cursor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
-use ctrlc::set_handler;
 use dashmap::DashMap;
 //#[macro_use]
 use lazy_static::lazy_static;
 use local_ip_address::local_ip;
+
 #[macro_use]
 extern crate log;
+
 use log::{error, info, warn};
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use rand::Rng;
-use crate::setup::Wifi;
+use crate::setup::{is_clover_connected, Wifi};
 use crate::setup::get_wifis;
+use simpdiscoverylib::BeaconSender;
 
+const BEACON_SERVICE_PORT: u16 = 6900;
+const BEACON_SERVICE_NAME: &str = "CopterShow";
 
 lazy_static! {
     static ref TABLE: Arc<DashMap<String, CopterData>> = Arc::new(DashMap::new());
@@ -118,48 +122,57 @@ fn main() {
     std::env::set_var("RUST_LOG", "axshow=trace");
     env_logger::init();
 
-    let my_local_ip = local_ip().unwrap();
-    let listener = TcpListener::bind("0.0.0.0:8002").unwrap();
+    // let my_local_ip = local_ip().unwrap_or(IpAddr::V4{ 0: "127.0.0.1".parse().unwrap() });
+    let listener = TcpListener::bind("0.0.0.0:".to_owned() + &*BEACON_SERVICE_PORT.to_string()).unwrap();
     info!("Listening on: {}", listener.local_addr().unwrap());
-    warn!("Zeroconf set ip to: {}", my_local_ip);
+    warn!("Broadcast set port to: {}", BEACON_SERVICE_PORT);
     thread::spawn(move || {
         for stream in listener.incoming() {
             let (tx, rx): (Sender<InternalPass>, Receiver<InternalPass>) = channel();
-            let stream = stream.unwrap();
-            thread::spawn(move || {
-                handle_client(stream, (tx, rx));
-            });
+            match stream {
+                Ok(stream) => {
+                    thread::spawn(move || {
+                        handle_client(stream, (tx, rx));
+                    });
+                }
+                _ => {}
+            }
+        }
+    });
+    thread::spawn(move || {
+        if let Ok(beacon) = BeaconSender::new(BEACON_SERVICE_PORT,
+                                              BEACON_SERVICE_NAME.as_bytes(), 9002) {
+            loop {
+                beacon.send_loop(Duration::from_secs(1)).unwrap_or({});
+                warn!("Error in broadcasting!");
+            }
         }
     });
 // Create a daemon
-    let mdns = ServiceDaemon::new().expect("Failed to create daemon");
+//     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
 
 // Create a service info.
-    let service_type = "_cshow._tcp.local.";
-    let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
-    let ip = my_local_ip.to_string();
-    let host_name = format!("{}._cshow._tcp.local.", instance_name);
-    let port = 8002;
-    let properties = [("desc", "HOME Bonjour test")];
+//     let service_type = "_cshow._tcp.local.";
+//     let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
+//     let ip = my_local_ip.to_string();
+//     let host_name = format!("{}._cshow._tcp.local.", instance_name);
+//     let port = 8002;
+//     let properties = [("desc", "HOME Bonjour test")];
 
-    let my_service = ServiceInfo::new(
-        service_type,
-        &*instance_name,
-        &*host_name,
-        ip,
-        port,
-        &properties[..],
-    ).unwrap();
+    // let my_service = ServiceInfo::new(
+    //     service_type,
+    //     &*instance_name,
+    //     &*host_name,
+    //     ip,
+    //     port,
+    //     &properties[..],
+    // ).unwrap();
 
     // Register with the daemon, which publishes the service.
-    mdns.register(my_service).expect("Failed to register our service");
+    // mdns.register(my_service).expect("Failed to register our service");
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
-
-    set_handler(move || {
-        r.store(false, Ordering::SeqCst);
-    }).expect("error setting handler");
 
     // while running.load(Ordering::SeqCst) {
     //     send_action("clover1", "take_off");
@@ -175,12 +188,13 @@ fn main() {
         .run(move |_app_handle, event| match event {
             tauri::RunEvent::ExitRequested { .. } => {
                 sleep(Duration::from_secs(1));
-                mdns.unregister(&*format!("{}.{}", instance_name, service_type)).expect("Error when unregistering");
-                mdns.shutdown().expect("Error shutting down");
+                // mdns.unregister(&*format!("{}.{}", instance_name, service_type)).expect("Error when unregistering");
+                // mdns.shutdown().expect("Error shutting down");
                 warn!("Bye!");
             }
             _ => {}
         });
+
     // Gracefully shutdown the daemon
 }
 

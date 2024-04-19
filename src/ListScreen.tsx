@@ -4,7 +4,7 @@ import {
     Checkbox, IconButton,
     List,
     ListItem, ListItemSecondaryAction,
-    ListItemText,
+    ListItemText, Typography,
 } from "@mui/material";
 import {invoke} from "@tauri-apps/api/tauri";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
@@ -112,6 +112,7 @@ export default function ListScreen(props: ListScreenProps) {
                             ))
                         }
                     </List>
+                    {props.copters.length == 0 && <Typography align="center">No connected copters</Typography>}
             <Box height={props.selected.length >= 1 ? 120 : 40}/>
                 </Box>
             </Box>

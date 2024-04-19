@@ -10,7 +10,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import React, {useState} from "react";
+import {useState} from "react";
 
 export default function SetupScreen() {
     const [wifiName, setWifiName] = useState('');
@@ -93,7 +93,7 @@ export default function SetupScreen() {
                     onClick={handleConnect}
                     sx={{marginTop: 2}}
                 >
-                    Connect
+                    Next
                 </Button>
             </form>
             <Box sx={{height: "70px"}}/>

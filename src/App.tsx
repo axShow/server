@@ -10,6 +10,8 @@ import AppBottomNavigation from "./BottomNavigationBar.tsx";
 import ListScreen from "./ListScreen.tsx";
 import ShowScreen from "./ShowScreen.tsx";
 import SetupScreen from "./SetupScreen.tsx";
+import {BrowserRouter, Route, Link, Routes, Router} from 'react-router-dom';
+import GenMapScreen from "./GenMapScreen.tsx";
 
 export interface CopterData {
     name: string;
@@ -22,7 +24,6 @@ export interface CopterData {
 function App() {
     const [copters, setCopters] = useState<CopterData[]>([]);
     const [selected, setSelected] = useState<string[]>([]);
-    const [currentTab, switchTab] = React.useState<number>(1);
     const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
     const theme = React.useMemo(
         () =>
@@ -40,7 +41,8 @@ function App() {
     }
 
     React.useEffect(() => {
-        update_copters().then(() => {}); // Fetch data immediately
+        update_copters().then(() => {
+        }); // Fetch data immediately
         const intervalId = setInterval(update_copters, 500); // Fetch data every 0.5 seconds
         return () => clearInterval(intervalId); // Clean up interval on unmount
     }, []);
@@ -49,12 +51,22 @@ function App() {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline/>
-            {currentTab == 0 && <SetupScreen/>}
-            {currentTab == 1 &&
-            <ListScreen selected={selected} setSelected={setSelected}
-                        copters={copters} update_copters={update_copters}/>}
-            {currentTab == 2 && <ShowScreen/>}
-            <AppBottomNavigation currentTab={currentTab} switchTab={switchTab}/>
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/" element={<ListScreen selected={selected} setSelected={setSelected}
+                                                         copters={copters} update_copters={update_copters}/>}/>
+                    <Route path="/setup" Component={SetupScreen}/>
+                    <Route path="/gen_map" element={<GenMapScreen startId={0} xNum={10} yNum={5} />}/>
+                    <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
+                </Routes>
+
+                <AppBottomNavigation/>
+            </BrowserRouter>
+            {/*{currentTab == 0 && <SetupScreen/>}*/}
+            {/*{currentTab == 1 &&*/}
+            {/*    <ListScreen selected={selected} setSelected={setSelected}*/}
+            {/*                copters={copters} update_copters={update_copters}/>}*/}
+            {/*{currentTab == 2 && <ShowScreen copters={copters} selected={selected}/>}*/}
         </ThemeProvider>
     );
 }
