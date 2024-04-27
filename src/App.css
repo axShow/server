@@ -5,3 +5,18 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafb);
 }
+@media print {
+  .hidden-print {
+    display: none !important;
+  }
+}
+@media screen {
+   .only-print {
+       display: none;
+   }
+}
+@media print {
+    .none-margin {
+        margin: 0 !important;
+    }
+}

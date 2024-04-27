@@ -10,7 +10,7 @@ import AppBottomNavigation from "./BottomNavigationBar.tsx";
 import ListScreen from "./ListScreen.tsx";
 import ShowScreen from "./ShowScreen.tsx";
 import SetupScreen from "./SetupScreen.tsx";
-import {BrowserRouter, Route, Link, Routes, Router} from 'react-router-dom';
+import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import GenMapScreen from "./GenMapScreen.tsx";
 
 export interface CopterData {
@@ -56,7 +56,7 @@ function App() {
                     <Route path="/" element={<ListScreen selected={selected} setSelected={setSelected}
                                                          copters={copters} update_copters={update_copters}/>}/>
                     <Route path="/setup" Component={SetupScreen}/>
-                    <Route path="/gen_map" element={<GenMapScreen startId={0} xNum={10} yNum={5} />}/>
+                    <Route path="/gen_map" element={<GenMapScreen selected={selected}/>}/>
                     <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
                 </Routes>
 

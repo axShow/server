@@ -103,7 +103,7 @@ export default function ListScreen(props: ListScreenProps) {
                                         <IconButton edge="end" color="primary" style={{marginRight: '4px'}}
                                                     onClick={() => invoke("send_action", {
                                                         addrName: item.name,
-                                                        action: "led(255,255,255)"
+                                                        action: "led(255,255,255,'blink')"
                                                     })}>
                                             <FlashOnIcon/>
                                         </IconButton>
