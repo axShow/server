@@ -43,9 +43,9 @@ export default function ListScreen(props: ListScreenProps) {
 
         props.update_copters(); // Fetch data immediately
 
-        const intervalId = setInterval(props.update_copters, 500); // Fetch data every 0.5 seconds
+        // const intervalId = setInterval(props.update_copters, 500); // Fetch data every 0.5 seconds
 
-        return () => clearInterval(intervalId); // Clean up interval on unmount
+        // return () => clearInterval(intervalId); // Clean up interval on unmount
     }, []);
 
 

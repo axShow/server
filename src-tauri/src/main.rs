@@ -29,6 +29,7 @@ use local_ip_address::local_ip;
 extern crate log;
 
 use log::{error, info, warn};
+use mdns_sd::{ServiceDaemon, ServiceInfo};
 use rand::Rng;
 use simpdiscoverylib::BeaconSender;
 use crate::setup::{is_clover_connected};
@@ -51,6 +52,18 @@ struct CopterData {
     controller_state: String,
 
 }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Response {
+    id: i32,
+    result: serde_json::Value
+
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+enum Receive{
+    Info(CopterData),
+    Response(Response)
+}
+
 // #[derive(Serialize, Deserialize, Debug, Clone)]
 // struct Query {
 //     name: String,
@@ -88,6 +101,11 @@ fn default_controller_state() -> String {
 
 fn parse_raw(msg: &str) -> ResultJson<CopterData> {
     let data: CopterData = serde_json::from_str(msg)?;
+    Ok(data)
+}
+
+fn parse_type(msg: &str) -> ResultJson<Receive> {
+    let data: Receive = serde_json::from_str(msg)?;
     Ok(data)
 }
 
@@ -131,7 +149,7 @@ fn main() {
     std::env::set_var("RUST_LOG", "axshow=trace");
     env_logger::init();
 
-    // let my_local_ip = local_ip().unwrap_or(IpAddr::V4{ 0: "127.0.0.1".parse().unwrap() });
+    let my_local_ip = local_ip().unwrap_or(IpAddr::V4{ 0: "127.0.0.1".parse().unwrap() });
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + &*BEACON_SERVICE_PORT.to_string()).unwrap();
     info!("Listening on: {}", listener.local_addr().unwrap());
     warn!("Broadcast set port to: {}", BEACON_SERVICE_PORT);
@@ -158,47 +176,47 @@ fn main() {
         }
     });
 // Create a daemon
-//     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
+    let mdns = ServiceDaemon::new().expect("Failed to create daemon");
+//
+// Create a service Info.
+    let service_type = "_cshow._tcp.local.";
+    let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
+    let ip = my_local_ip.to_string();
+    let host_name = format!("{}._cshow._tcp.local.", instance_name);
+    let port = 6900;
+    let properties = [("desc", "HOME Bonjour test")];
 
-// Create a service info.
-//     let service_type = "_cshow._tcp.local.";
-//     let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
-//     let ip = my_local_ip.to_string();
-//     let host_name = format!("{}._cshow._tcp.local.", instance_name);
-//     let port = 8002;
-//     let properties = [("desc", "HOME Bonjour test")];
-
-    // let my_service = ServiceInfo::new(
-    //     service_type,
-    //     &*instance_name,
-    //     &*host_name,
-    //     ip,
-    //     port,
-    //     &properties[..],
-    // ).unwrap();
+    let my_service = ServiceInfo::new(
+        service_type,
+        &*instance_name,
+        &*host_name,
+        ip,
+        port,
+        &properties[..],
+    ).unwrap();
 
     // Register with the daemon, which publishes the service.
-    // mdns.register(my_service).expect("Failed to register our service");
+    mdns.register(my_service).expect("Failed to register our service");
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
 
     // while running.load(Ordering::SeqCst) {
     //     send_action("clover1", "take_off");
-    //     info!("Current table is: {:?}", get_connected_clients());
+    //     Info!("Current table is: {:?}", get_connected_clients());
     //     sleep(Duration::from_secs(1));
     // }
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![send_action, get_connected_clients,
+        .invoke_handler(tauri::generate_handler![send_action, get_connected_clients, //wait_for,
             send_mass_action])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(move |_app_handle, event| match event {
             tauri::RunEvent::ExitRequested { .. } => {
                 sleep(Duration::from_secs(1));
-                // mdns.unregister(&*format!("{}.{}", instance_name, service_type)).expect("Error when unregistering");
-                // mdns.shutdown().expect("Error shutting down");
+                mdns.unregister(&*format!("{}.{}", instance_name, service_type)).expect("Error when unregistering");
+                mdns.shutdown().expect("Error shutting down");
                 warn!("Bye!");
             }
             _ => {}
@@ -222,14 +240,32 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
         }
         match recv_msg(&mut stream) {
             Ok(msg_str) => {
-                match parse_raw(&msg_str) {
-                    Ok(data) => {
-                        debug!("Data received from client is: {:?}, {:?}, {:?}, {:?}", data.name,data.battery,data.flight_mode,data.controller_state);
-                        let data_name = data.name.clone();
-                        name = data_name;
-                        if !CHANNELS.contains_key(&data.name.clone()) { CHANNELS.insert(data.name.clone(), channel.0.to_owned()); }
-                        TABLE.insert(ip.clone(), data);
-                        send_msg(&mut stream, "ok").unwrap_or_default();
+                let json: ResultJson<Receive> = serde_json::from_str(&msg_str);
+                match json {
+                    Ok(json_data) => {
+                        debug!("{json_data:?}")
+                        // match (json_data) {
+                        //     copterdata => {
+                        //         println!("received Info");
+                        //         match parse_raw(&msg_str) {
+                        //             Ok(data) => {
+                        //                 debug!("Data received from client is: {:?}, {:?}, {:?}, {:?}", data.name,data.battery,data.flight_mode,data.controller_state);
+                        //                 let data_name = data.name.clone();
+                        //                 name = data_name;
+                        //                 if !CHANNELS.contains_key(&data.name.clone()) { CHANNELS.insert(data.name.clone(), channel.0.to_owned()); }
+                        //                 TABLE.insert(ip.clone(), data);
+                        //                 send_msg(&mut stream, "ok").unwrap_or_default();
+                        //             }
+                        //             Err(e) => {
+                        //                 error!("Failed to parse message: {:?}", e);
+                        //             }
+                        //         }
+                        //     }
+                        //     Response => {
+                        //         println!("received response")
+                        //     }
+                        //     _ => {}
+                        // }
                     }
                     Err(e) => {
                         error!("Failed to parse message: {:?}", e);
@@ -271,6 +307,12 @@ fn send_mass_action(addr_names: Vec<&str>, action: &str) {
 
 #[tauri::command]
 fn get_connected_clients() -> Result<Vec<CopterData>, ()> {
+    println!("sending clients");
     let values: Vec<_> = TABLE.clone().iter().map(|v| v.value().clone()).collect();
     Ok(values)
+}
+
+#[tauri::command(async)]
+fn wait_for_connection() {
+    println!("loop")
 }

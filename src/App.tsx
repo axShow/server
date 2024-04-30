@@ -22,11 +22,7 @@ export interface CopterData {
 
 
 function App() {
-    const [copters, setCopters] = useState<CopterData[]>([{name: "clover-1", battery: 12.2, flight_mode: "MANUAL", controller_state: "OK"}, {
-                            name: "clover-2", battery: 12.2,
-                            flight_mode: "MANUAL",
-                            controller_state: "OK"
-                        }]);
+    const [copters, setCopters] = useState<CopterData[]>([]);
     const [selected, setSelected] = useState<string[]>([]);
     const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
     const theme = React.useMemo(
@@ -41,10 +37,12 @@ function App() {
     document.body.style.backgroundColor = '#00000000';
 
     async function update_copters() {
-        // setCopters((await invoke("get_connected_clients", {})));
+        setCopters((await invoke("get_connected_clients", {})));
     }
 
     React.useEffect(() => {
+
+        invoke("wait_for", {});
         update_copters().then(() => {
         }); // Fetch data immediately
         const intervalId = setInterval(update_copters, 500); // Fetch data every 0.5 seconds

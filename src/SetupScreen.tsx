@@ -92,6 +92,7 @@ export default function SetupScreen(props: SetupScreenProps) {
     const [password, setPassword] = useState('');
     const [hostname, setHostname] = useState('');
     const [useOptFlow, setUseOptFlow] = useState(false);
+    const [setupController, setSetupController] = useState(false);
     const [cameraOrientation, setCameraOrientation] = useState('backward');
     const [activeStep, setActiveStep] = React.useState(0);
     const [openBackdrop, setOpenBackdrop] = React.useState(false);
@@ -221,7 +222,7 @@ You must be connected to the same network (${ssid}) as the copter`)
                     }
                     {activeStep == 2 && <SettingUpOffboardStep cameraOrientation={cameraOrientation}
                                                                setCameraOrientation={setCameraOrientation}
-                                                               setUseOptFlow={setUseOptFlow} useOptFlow={useOptFlow}/>}
+                                                               setUseOptFlow={setUseOptFlow} useOptFlow={useOptFlow} setSetupController={setSetupController} setupController={setupController}/>}
 
                     {activeStep != 0 &&
                         <Box sx={{display: 'flex', flexDirection: 'row', pt: 2}}>

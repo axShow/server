@@ -25,6 +25,8 @@ rand = "0.8.5"
 rusync = "0.7.2"
 port_scanner = "0.1.5"
 simpdiscover = "0.7.0"
+zeroconf = "0.14.1"
+mdns-sd = "0.10.5"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
