@@ -5,11 +5,6 @@
 mod setup;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 
 use std::net::{IpAddr, TcpListener, TcpStream};
 use std::thread;
@@ -34,11 +29,9 @@ use local_ip_address::local_ip;
 extern crate log;
 
 use log::{error, info, warn};
-use mdns_sd::{ServiceDaemon, ServiceInfo};
 use rand::Rng;
-use crate::setup::{is_clover_connected, Wifi};
-use crate::setup::get_wifis;
 use simpdiscoverylib::BeaconSender;
+use crate::setup::{is_clover_connected};
 
 const BEACON_SERVICE_PORT: u16 = 6900;
 const BEACON_SERVICE_NAME: &str = "CopterShow";
@@ -58,7 +51,23 @@ struct CopterData {
     controller_state: String,
 
 }
-
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// struct Query {
+//     name: String,
+//     #[serde(default = "default_battery")]
+//     battery: Option<f32>,
+//     #[serde(default = "default_flight_mode")]
+//     flight_mode: String,
+//     #[serde(default = "default_controller_state")]
+//     controller_state: String,
+//
+// }
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// struct Response {
+//     id: Integer,
+//     method_name: String,
+//     args:
+// }
 struct InternalPass {
     addr_name: String,
     action: String,
@@ -181,8 +190,8 @@ fn main() {
     // }
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, send_action, get_connected_clients,
-            get_wifis, send_mass_action])
+        .invoke_handler(tauri::generate_handler![send_action, get_connected_clients,
+            send_mass_action])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(move |_app_handle, event| match event {
