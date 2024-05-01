@@ -20,8 +20,8 @@ interface AppBarProps {
 
 interface PopoutItem {
     title: string,
-    action: string,
-    args: any[]
+    method_name: string,
+    args: object
 }
 
 interface PopoverProps {
@@ -68,20 +68,20 @@ export default function BottomToolbar(props: AppBarProps) {
     const [selectedItems, setSeletedItems] =
         React.useState<PopoutItem[]>([])
     const testItems: PopoutItem[] = [
-        {title: "Takeoff", action: "take_off", args: []},
-        {title: "Blink led", action: "led", args: [255, 255, 255]},
-        {title: "Run self check", action: "self_check", args: []},
+        {title: "Takeoff", method_name: "takeoff", args: {}},
+        {title: "Blink led", method_name: "led", args: {r: 255, g: 255, b: 255, effect: "flash"}},
+        {title: "Run self check", method_name: "self_check", args: {}},
     ]
     const restartItems: PopoutItem[] = [
-        {title: "Restart RPI", action: "restart_system", args: []},
-        {title: "Restart FCU", action: "restart_fcu", args: []},
-        {title: "Rerun show-client", action: "restart_client", args: []},
+        {title: "Restart RPI", method_name: "restart_system", args: {}},
+        {title: "Restart FCU", method_name: "restart_fcu", args: {}},
+        {title: "Rerun show-client", method_name: "restart_client", args: {}},
     ]
     const emergencyItems: PopoutItem[] = [
-        {title: "Emergency land", action: "emergency_land", args: []},
-        {title: "Force disarm", action: "force_disarm", args: []},
-        {title: "Land", action: "land", args: []},
-        {title: "Kill show-client", action: "kill_yourself", args: []}
+        {title: "Emergency land", method_name: "emergency_land", args: {}},
+        {title: "Force disarm", method_name: "force_disarm", args: {}},
+        {title: "Land", method_name: "land", args: {}},
+        {title: "Kill show-client", method_name: "kill_yourself", args: {}}
     ]
     const handlePopoverOpen = (event: React.MouseEvent, items: PopoutItem[]) => {
         setAnchorEl(event.currentTarget);
@@ -93,10 +93,14 @@ export default function BottomToolbar(props: AppBarProps) {
     };
 
     const sendCommand = (cmd: PopoutItem) => {
-        let args_str = cmd.args.map(item => typeof item === 'string' ? `"${item}"` : item).join(', ');
+        //let args_str = cmd.args.map(item => typeof item === 'string' ? `"${item}"` : item).join(', ');
         invoke("send_mass_action", {
             addrNames: props.selected,
-            action: cmd.action + "(" + args_str + ")"
+            query: {
+                id: 123,
+                method_name: cmd.method_name,
+                args: cmd.args
+            }
         })
     }
     return (

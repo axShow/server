@@ -163,6 +163,7 @@ fn main() {
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + &*BEACON_SERVICE_PORT.to_string()).unwrap();
     info!("Listening on: {}", listener.local_addr().unwrap());
     warn!("Broadcast set port to: {}", BEACON_SERVICE_PORT);
+    warn!("Zeroconf set ip to: {}", my_local_ip);
     thread::spawn(move || {
         for stream in listener.incoming() {
             let (tx, rx): (Sender<InternalPass>, Receiver<InternalPass>) = channel();
