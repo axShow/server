@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
 use dashmap::DashMap;
+use dashmap::mapref::one::Ref;
 //#[macro_use]
 use lazy_static::lazy_static;
 use local_ip_address::local_ip;
@@ -52,16 +53,24 @@ struct CopterData {
     controller_state: String,
 
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Response {
     id: i32,
-    result: serde_json::Value
-
+    result: serde_json::Value,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-enum Receive{
+struct Query {
+    id: i32,
+    method_name: String,
+    args: serde_json::Value
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
+enum Receive {
     Info(CopterData),
-    Response(Response)
+    Response(Response),
 }
 
 // #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -81,9 +90,10 @@ enum Receive{
 //     method_name: String,
 //     args:
 // }
+#[derive(Debug)]
 struct InternalPass {
     addr_name: String,
-    action: String,
+    query: Query
 }
 
 
@@ -149,7 +159,7 @@ fn main() {
     std::env::set_var("RUST_LOG", "axshow=trace");
     env_logger::init();
 
-    let my_local_ip = local_ip().unwrap_or(IpAddr::V4{ 0: "127.0.0.1".parse().unwrap() });
+    let my_local_ip = local_ip().unwrap_or(IpAddr::V4 { 0: "127.0.0.1".parse().unwrap() });
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + &*BEACON_SERVICE_PORT.to_string()).unwrap();
     info!("Listening on: {}", listener.local_addr().unwrap());
     warn!("Broadcast set port to: {}", BEACON_SERVICE_PORT);
@@ -233,8 +243,8 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
     loop {
         match channel.1.try_recv() {
             Ok(data) => {
-                info!("received {} for {}", data.action, data.addr_name);
-                send_msg(&mut stream, data.action.as_str()).unwrap_or_default();
+                info!("received {:?} for {}", data.query, data.addr_name);
+                send_msg(&mut stream, &serde_json::to_string(&data.query).unwrap_or("ok".to_string())).unwrap_or_default();
             }
             Err(_) => {}
         }
@@ -243,7 +253,18 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                 let json: ResultJson<Receive> = serde_json::from_str(&msg_str);
                 match json {
                     Ok(json_data) => {
-                        debug!("{json_data:?}")
+                        debug!("{json_data:?}");
+                        match json_data {
+                            Receive::Info(info) => {
+                                // debug!("Data received from client is: {info:?}");
+                                let data_name = info.name.clone();
+                                name = data_name;
+                                if !CHANNELS.contains_key(&info.name.clone()) { CHANNELS.insert(info.name.clone(), channel.0.to_owned()); }
+                                TABLE.insert(ip.clone(), info);
+                                send_msg(&mut stream, "ok").unwrap_or_default();
+                            }
+                            Receive::Response(response) => {}
+                        }
                         // match (json_data) {
                         //     copterdata => {
                         //         println!("received Info");
@@ -285,23 +306,24 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
 }
 
 #[tauri::command]
-fn send_action(addr_name: &str, action: &str) {
+fn send_action(addr_name: &str, query: Query) {
+    println!("{query:?}");
     match CHANNELS.get(addr_name) {
         None => {}
-        _ => {
-            CHANNELS.get(addr_name).unwrap().send(
+        Some(sender) => {
+            sender.value().send(
                 InternalPass {
                     addr_name: addr_name.to_string(),
-                    action: action.to_string(),
+                    query: query.clone(),
                 }).unwrap_or_default();
         }
     }
 }
 
 #[tauri::command]
-fn send_mass_action(addr_names: Vec<&str>, action: &str) {
+fn send_mass_action(addr_names: Vec<&str>, query: Query) {
     for addr_name in addr_names {
-        send_action(addr_name, action);
+        send_action(addr_name, query.clone());
     }
 }
 
