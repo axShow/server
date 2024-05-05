@@ -73,15 +73,15 @@ export default function BottomToolbar(props: AppBarProps) {
         {title: "Run self check", method_name: "self_check", args: {}},
     ]
     const restartItems: PopoutItem[] = [
-        {title: "Restart RPI", method_name: "restart_system", args: {}},
-        {title: "Restart FCU", method_name: "restart_fcu", args: {}},
+        {title: "Restart RPI", method_name: "reboot_system", args: {}},
+        {title: "Restart FCU", method_name: "reboot_fcu", args: {}},
         {title: "Rerun show-client", method_name: "restart_client", args: {}},
     ]
     const emergencyItems: PopoutItem[] = [
         {title: "Emergency land", method_name: "emergency_land", args: {}},
-        {title: "Force disarm", method_name: "force_disarm", args: {}},
+        {title: "Force disarm", method_name: "set_arming", args: {state: false}},
         {title: "Land", method_name: "land", args: {}},
-        {title: "Kill show-client", method_name: "kill_yourself", args: {}}
+        {title: "Kill show-client", method_name: "kill_client", args: {}}
     ]
     const handlePopoverOpen = (event: React.MouseEvent, items: PopoutItem[]) => {
         setAnchorEl(event.currentTarget);

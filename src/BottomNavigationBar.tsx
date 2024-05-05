@@ -11,7 +11,7 @@ export default function AppBottomNavigation(props: BottomNavigationBarProps) {
     props
     const [currentTab, switchTab] = React.useState<number>(1);
     return (
-        <div class={"hidden-print"}>
+        <div className={"hidden-print"}>
             <BottomNavigation
                 value={currentTab}
                 onChange={(_: any, newValue: number) => {

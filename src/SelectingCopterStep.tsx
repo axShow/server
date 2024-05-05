@@ -10,7 +10,7 @@ interface SelectingCopterProps {
 }
 
 export default function SelectingCopterStep(props: SelectingCopterProps) {
-    function handleSelect(name: str) {
+    function handleSelect(name: string) {
         props.setChoosed(name);
         props.handleNext();
     }
@@ -18,16 +18,17 @@ export default function SelectingCopterStep(props: SelectingCopterProps) {
         <Box margin={5}>
             <Typography gutterBottom variant={"h5"}>Select copter for configuration: </Typography>
             <List sx={{
-                bgcolor: "rgba(0,0,0,0.28)", borderRadius: 2, p: 0,
+                bgcolor: "rgba(0,0,0,0.06)", borderRadius: 2, p: 0,
                 width: '100%',
                 border: '1px solid',
                 borderColor: 'divider',
             }}>
                 {props.copters.map((copter, index) => (
-                    <React.Fragment>
+                    <React.Fragment
+                            key={copter.addr}>
                         <ListItem
-                            onClick={() => handleSelect(copter.name)}
-                            key={copter.name}
+                            sx={{margin: 1}}
+                            onClick={() => handleSelect(copter.addr)}
                             secondaryAction={
                                 <IconButton>
                                     <ArrowRight/>
@@ -42,7 +43,7 @@ export default function SelectingCopterStep(props: SelectingCopterProps) {
             </List>
             {props.copters.length == 0 &&
                 <Paper sx={{
-                    bgcolor: "rgba(0,0,0,0.28)", borderRadius: 2, p: 4,
+                    bgcolor: "rgba(0,0,0,0.06)", borderRadius: 2, p: 4,
                     width: '100%',
                     border: '1px solid',
                     borderColor: 'divider', textAlign: "center"

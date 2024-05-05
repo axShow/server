@@ -10,14 +10,15 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import StepConnector, {stepConnectorClasses} from '@mui/material/StepConnector';
 import {styled} from "@mui/system";
 import {Check} from "@mui/icons-material";
 import ConnectWifiStep from "./ConnectWifiStep.tsx";
 import SettingUpOffboardStep from "./SettingUpOffboardStep.tsx";
 import SelectingCopterStep from "./SelectingCopterStep.tsx";
-import {CopterData} from "./App.tsx";
+import {CopterData, Query, Response, send_for_response, send_message_to_copter} from "./App.tsx";
+import {invoke} from "@tauri-apps/api/tauri";
 
 const QontoConnector = styled(StepConnector)(({theme}) => ({
     [`&.${stepConnectorClasses.alternativeLabel}`]: {
@@ -83,25 +84,36 @@ function QontoStepIcon(props: StepIconProps) {
 const steps = ['Select copter', 'Connect to wifi', 'Setup offboard mode'];
 
 interface SetupScreenProps {
-    copters: CopterData[]
+    copters: CopterData[];
 }
 
-
+declare global {
+    var loading: boolean;
+}
+var loading = window.loading;
 export default function SetupScreen(props: SetupScreenProps) {
+    const [choosed, setChoosed] = useState('');
+
     const [ssid, setSsid] = useState('');
     const [password, setPassword] = useState('');
     const [hostname, setHostname] = useState('');
+
     const [useOptFlow, setUseOptFlow] = useState(false);
+    const [useAruco, setUseAruco] = useState(true);
+    const [useRangefinder, setUseRangefinder] = useState(false);
     const [setupController, setSetupController] = useState(false);
     const [cameraOrientation, setCameraOrientation] = useState('backward');
-    const [activeStep, setActiveStep] = React.useState(0);
+
     const [openBackdrop, setOpenBackdrop] = React.useState(false);
     const [textBackdrop, setTextBackdrop] = React.useState('Loading');
+    const [snackMessage, setSnackMessage] = React.useState<string>("");
+
     const [skipped, setSkipped] = React.useState(new Set<number>());
     // const [loading, setLoading] = React.useState<boolean>(false);
-    const [openSnack, setOpenSnack] = React.useState<boolean>(false);
-    const [snackMessage, setSnackMessage] = React.useState<string>("");
-    var loading = false;
+    // const [openSnack, setOpenSnack] = React.useState<boolean>(false);
+
+    const [activeStep, setActiveStep] = React.useState(0);
+    const [wifi_connecting_step, set_wifi_connecting_step] = React.useState(0);
     const isStepOptional = (step: number) => {
         return step === 1;
     };
@@ -109,33 +121,61 @@ export default function SetupScreen(props: SetupScreenProps) {
     const isStepSkipped = (step: number) => {
         return skipped.has(step);
     };
-
     const handleNext = () => {
         loading = false;
         let newSkipped = skipped;
         if (activeStep == 1) {
-            if (ssid == "" || password == "") {
+            if (ssid == "" || password == "" || hostname == "") {
                 setSnackMessage("Please enter valid wifi SSID and password")
-                setOpenSnack(true)
+                // setOpenSnack(true)
+                return
+            }
+            if (!props.copters.some(val => val.addr == choosed)) {
+                setSnackMessage("Copter not connected!")
+                // setOpenSnack(true)
                 return
             }
             setOpenBackdrop(true)
-            setTextBackdrop(`Waiting for the copter to come online. 
-You must be connected to the same network (${ssid}) as the copter`)
             loading = true
+            send_message_to_copter(choosed, {
+                method_name: "connect_wifi",
+                args: {
+                    ssid: ssid,
+                    password: password,
+                    hostname: hostname
+                }
+            })
             //connect to wifi
-            setTimeout(() => {
-                loading = false
-            }, 8000)
+            set_wifi_connecting_step(1);
+            console.warn(wifi_connecting_step)
         }
         if (activeStep == 2) {
+            if (!props.copters.some(val => val.addr == choosed)) {
+                setSnackMessage("Copter not connected!")
+                // setOpenSnack(true)
+                return
+            }
             setOpenBackdrop(true)
             setTextBackdrop(`Applyng settings...`)
             loading = true
             //connect to wifi
-            setTimeout(() => {
-                loading = false
-            }, 3000)
+            send_for_response(choosed, {
+                method_name: "setup",
+                args: {
+                    optical_flow: useOptFlow,
+                    rangefinder: useRangefinder,
+                    enable_aruco: useAruco,
+                    cam_direction: cameraOrientation,
+                    setup_flight_controller: setupController
+                }
+            }).then((res) => {
+                    let response = res as Response
+                    loading = false
+                    if (!response.result.result) {
+                        setSnackMessage("Error when configurating. Try to setup manually!")
+                    }
+                }
+            )
             // setTimeout(() => setOpenBackdrop(false), 1000)
         }
         interval = setInterval(
@@ -152,7 +192,27 @@ You must be connected to the same network (${ssid}) as the copter`)
             }, 500
         )
     };
-
+    useEffect(() => {
+        console.warn(props.copters)
+        console.warn(wifi_connecting_step)
+        if (wifi_connecting_step == 1) {
+            setTextBackdrop(`Waiting for changing copter settings...`)
+            console.log(props.copters);
+            if (!props.copters.some(val => val.addr == choosed)) {
+                set_wifi_connecting_step(2);
+            }
+        } else if (wifi_connecting_step == 2) {
+            setTextBackdrop(`Waiting for the copter to come online...
+You must be connected to the same network (${ssid}) as the copter`)
+            let new_copter_data = props.copters.find(v => v.name == hostname)
+            if (new_copter_data != undefined && new_copter_data.addr != '') {
+                set_wifi_connecting_step(0);
+                console.log(new_copter_data)
+                setChoosed(new_copter_data.addr)
+                loading = false
+            }
+        }
+    }, [wifi_connecting_step, props.copters])
     const handleBack = () => {
         //setLoading(false)
         loading = false
@@ -180,10 +240,10 @@ You must be connected to the same network (${ssid}) as the copter`)
         setActiveStep(0);
     };
 
-    const handleConnect = () => {
-        // Implement connection logic here
-        console.log('Connecting to copter...');
-    };
+    // const handleConnect = () => {
+    //     // Implement connection logic here
+    //     console.log('Connecting to copter...');
+    // };
     return (
         <Box margin={2}>
             <Stepper activeStep={activeStep} connector={<QontoConnector/>}>
@@ -214,15 +274,21 @@ You must be connected to the same network (${ssid}) as the copter`)
                 </React.Fragment>
             ) : (
                 <React.Fragment>
+                    {/*<Typography>{props.copters.find(val => val.addr == choosed).battery}</Typography>*/}
                     {activeStep == 0 && <SelectingCopterStep
-                        copters={props.copters} handleNext={handleNext} setChoosed={setHostname}/>}
+                        copters={props.copters} handleNext={handleNext} setChoosed={setChoosed}/>}
                     {activeStep == 1 &&
                         <ConnectWifiStep Hostname={hostname} changeHostname={setHostname} changeSSID={setSsid}
                                          changePassword={setPassword} Password={password} SSID={ssid}/>
                     }
                     {activeStep == 2 && <SettingUpOffboardStep cameraOrientation={cameraOrientation}
                                                                setCameraOrientation={setCameraOrientation}
-                                                               setUseOptFlow={setUseOptFlow} useOptFlow={useOptFlow} setSetupController={setSetupController} setupController={setupController}/>}
+                                                               setUseOptFlow={setUseOptFlow} useOptFlow={useOptFlow}
+                                                               setSetupController={setSetupController}
+                                                               setupController={setupController}
+                                                               setUseAruco={setUseAruco}
+                                                               setUseRangefinder={setUseRangefinder} useAruco={useAruco}
+                                                               useRangefinder={useRangefinder}/>}
 
                     {activeStep != 0 &&
                         <Box sx={{display: 'flex', flexDirection: 'row', pt: 2}}>
@@ -265,9 +331,9 @@ You must be connected to the same network (${ssid}) as the copter`)
             </Stack>
             </Backdrop>
             <Snackbar
-                open={openSnack}
+                open={snackMessage != ""}
                 autoHideDuration={6000}
-                onClose={() => setOpenSnack(false)}
+                onClose={() => setSnackMessage("")}
                 message={snackMessage}
             />
         </Box>
