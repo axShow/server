@@ -1,13 +1,8 @@
 import {
-    Avatar, Backdrop,
+    Backdrop,
     Box,
     Button, CircularProgress,
-    Container,
-    FormControl, Grid,
-    InputLabel,
-    MenuItem,
-    Select, SelectChangeEvent, Snackbar, Stack, Step, StepIconProps, StepLabel, Stepper,
-    TextField,
+     Snackbar, Stack, Step, StepIconProps, StepLabel, Stepper,
     Typography
 } from "@mui/material";
 import React, {useState} from "react";
@@ -180,10 +175,10 @@ You must be connected to the same network (${ssid}) as the copter`)
         setActiveStep(0);
     };
 
-    const handleConnect = () => {
-        // Implement connection logic here
-        console.log('Connecting to copter...');
-    };
+    // const handleConnect = () => {
+    //     // Implement connection logic here
+    //     console.log('Connecting to copter...');
+    // };
     return (
         <Box margin={2}>
             <Stepper activeStep={activeStep} connector={<QontoConnector/>}>

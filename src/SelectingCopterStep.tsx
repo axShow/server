@@ -10,7 +10,7 @@ interface SelectingCopterProps {
 }
 
 export default function SelectingCopterStep(props: SelectingCopterProps) {
-    function handleSelect(name: str) {
+    function handleSelect(name: string) {
         props.setChoosed(name);
         props.handleNext();
     }

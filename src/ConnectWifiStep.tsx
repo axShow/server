@@ -1,5 +1,5 @@
-import {Box, Button, Grid, TextField, Typography} from "@mui/material";
-import {useEffect} from "react";
+import {Box, Grid, TextField, Typography} from "@mui/material";
+
 interface ConnectWifiStepProps {
     changeSSID: (val: string) => void
     changePassword: (val: string) => void

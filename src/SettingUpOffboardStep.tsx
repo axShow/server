@@ -4,12 +4,8 @@ import {
     FormControl,
     FormControlLabel,
     FormLabel,
-    Grid,
-    InputLabel,
-    MenuItem, Radio, RadioGroup,
-    Select
+    Grid, Radio, RadioGroup
 } from "@mui/material";
-import React from "react";
 interface SettingUpOffboardStep {
     useOptFlow: boolean,
     setUseOptFlow: (val: boolean) => void,
