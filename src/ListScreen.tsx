@@ -4,21 +4,24 @@ import {
     Checkbox, IconButton,
     List,
     ListItem, ListItemSecondaryAction,
-    ListItemText, Typography,
+    ListItemText, Tooltip, Typography,
 } from "@mui/material";
 import {invoke} from "@tauri-apps/api/tauri";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import GamepadIcon from "@mui/icons-material/Gamepad";
 import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
+import LoadingButton from '@mui/lab/LoadingButton';
 import FlashOnIcon from "@mui/icons-material/FlashOn";
 import BottomToolbar from "./ToolBar.tsx";
-import {CopterData} from "./App.tsx";
+import {CopterData, Query} from "./App.tsx";
+import {randomNumberBetween} from "@mui/x-data-grid/internals";
 
 interface ListScreenProps {
     setSelected: (selected: string[]) => void
     selected: string[]
     update_copters: () => void
+    send: (addr: string, query: Query) => void
     copters: CopterData[]
 }
 
@@ -66,14 +69,14 @@ export default function ListScreen(props: ListScreenProps) {
                     <List>
                         {
                             props.copters.map((item) => (
-                                <ListItem key={item.name}>
+                                <ListItem key={item.addr} ar>
                                     <Checkbox
                                         edge="start"
-                                        checked={props.selected.indexOf(item.name) !== -1}
+                                        checked={props.selected.indexOf(item.addr) !== -1}
                                         tabIndex={-1}
                                         disableRipple
-                                        inputProps={{'aria-labelledby': `checkbox-list-label-${item.name}`}}
-                                        onClick={handleToggle(item.name)}
+                                        inputProps={{'aria-labelledby': `checkbox-list-label-${item.addr}`}}
+                                        onClick={handleToggle(item.addr)}
                                     />
                                     <ListItemText
                                         primary={item.name}
@@ -81,11 +84,14 @@ export default function ListScreen(props: ListScreenProps) {
                                             <Box display="flex" alignItems="center">
                                                 <BatteryFullIcon fontSize="small"
                                                                  sx={{marginRight: 1}}/> {item.battery?.toFixed(2)}V
+                                                <Tooltip title={item.addr} enterDelay={1500}>
                                                 <CheckCircleOutlineIcon fontSize="small"
                                                                         sx={{
                                                                             marginRight: 1,
                                                                             marginLeft: 2
-                                                                        }}/> {item.controller_state}
+                                                                        }}/>
+                                                </Tooltip>
+                                                {item.controller_state}
                                                 <GamepadIcon fontSize="small"
                                                              sx={{marginRight: 1, marginLeft: 2}}/> {item.flight_mode}
                                             </Box>
@@ -93,22 +99,15 @@ export default function ListScreen(props: ListScreenProps) {
                                     />
                                     <ListItemSecondaryAction>
                                         <IconButton edge="end" color="primary" style={{marginRight: '8px'}}
-                                                    onClick={() => invoke("send_action", {
-                                                        addrName: item.name,
-                                                        query: {
-                                                            id: 123,
-                                                            method_name: "takeoff",
-                                                            args: {}
-                                                        }
-                                                    })}>
+                                                    onClick={() => props.send(item.addr, {method_name: "takeoff", args: {}})}>
                                             <FlightTakeoffIcon/>
                                         </IconButton>
 
                                         <IconButton edge="end" color="primary" style={{marginRight: '4px'}}
-                                                    onClick={() => invoke("send_action", {
-                                                        addrName: item.name,
-                                                        query: {
-                                                            id: 123,
+                                                    onClick={() => {
+                                                        props.send(
+                                                        item.addr,
+                                                        {
                                                             method_name: "led",
                                                             args: {
                                                                 r: 255,
@@ -117,7 +116,8 @@ export default function ListScreen(props: ListScreenProps) {
                                                                 effect: "flash"
                                                             }
                                                         }
-                                                    })}>
+                                                    )
+                                                    }}>
                                             <FlashOnIcon/>
                                         </IconButton>
                                     </ListItemSecondaryAction>

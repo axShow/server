@@ -7,7 +7,7 @@ mod setup;
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 
 use std::net::{IpAddr, TcpListener, TcpStream};
-use std::thread;
+use std::{thread};
 use std::io::{Read, Write};
 use std::sync::{Arc};
 use std::sync::mpsc::{channel, Sender, Receiver};
@@ -28,6 +28,7 @@ use local_ip_address::local_ip;
 
 #[macro_use]
 extern crate log;
+extern crate core;
 
 use log::{error, info, warn};
 use mdns_sd::{ServiceDaemon, ServiceInfo};
@@ -44,6 +45,8 @@ lazy_static! {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct CopterData {
+    #[serde(skip_deserializing)]
+    addr: String,
     name: String,
     #[serde(default = "default_battery")]
     battery: Option<f32>,
@@ -51,6 +54,8 @@ struct CopterData {
     flight_mode: String,
     #[serde(default = "default_controller_state")]
     controller_state: String,
+    #[serde(default = "Vec::new")]
+    responses: Vec<Response>,
 
 }
 
@@ -59,11 +64,12 @@ struct Response {
     id: i32,
     result: serde_json::Value,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Query {
     id: i32,
     method_name: String,
-    args: serde_json::Value
+    args: serde_json::Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -73,27 +79,10 @@ enum Receive {
     Response(Response),
 }
 
-// #[derive(Serialize, Deserialize, Debug, Clone)]
-// struct Query {
-//     name: String,
-//     #[serde(default = "default_battery")]
-//     battery: Option<f32>,
-//     #[serde(default = "default_flight_mode")]
-//     flight_mode: String,
-//     #[serde(default = "default_controller_state")]
-//     controller_state: String,
-//
-// }
-// #[derive(Serialize, Deserialize, Debug, Clone)]
-// struct Response {
-//     id: Integer,
-//     method_name: String,
-//     args:
-// }
 #[derive(Debug)]
 struct InternalPass {
     addr_name: String,
-    query: Query
+    query: Query,
 }
 
 
@@ -219,7 +208,7 @@ fn main() {
     // }
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![send_action, get_connected_clients, //wait_for,
+        .invoke_handler(tauri::generate_handler![send_action, get_connected_clients, send_for_response,//wait_for,
             send_mass_action])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -239,7 +228,7 @@ fn main() {
 fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver<InternalPass>)) {
     let ip = stream.peer_addr().unwrap().to_string();
     info!("Received one request from {}", ip);
-    let mut name: String = "".to_string();
+    // let mut name: String = "".to_string();
     //TABLE.insert(ip.clone(), None);
     loop {
         match channel.1.try_recv() {
@@ -254,40 +243,35 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                 let json: ResultJson<Receive> = serde_json::from_str(&msg_str);
                 match json {
                     Ok(json_data) => {
-                        debug!("{json_data:?}");
                         match json_data {
-                            Receive::Info(info) => {
+                            Receive::Info(mut info) => {
                                 // debug!("Data received from client is: {info:?}");
                                 let data_name = info.name.clone();
-                                name = data_name;
-                                if !CHANNELS.contains_key(&info.name.clone()) { CHANNELS.insert(info.name.clone(), channel.0.to_owned()); }
-                                TABLE.insert(ip.clone(), info);
+                                // name = data_name;
+                                let data = TABLE.get_mut(&ip.clone());
+                                debug!("{data:?}");
+                                if !CHANNELS.contains_key(&ip.clone()) { CHANNELS.insert(ip.clone(), channel.0.to_owned()); }
+                                match data {
+                                    Some(mut copt_data) => {
+                                        copt_data.addr = ip.clone();
+                                        copt_data.battery = info.battery;
+                                        copt_data.controller_state = info.controller_state;
+                                        copt_data.flight_mode = info.flight_mode;
+                                        // info!("{:?}", copt_data.responses);
+                                    }
+                                    None => {
+                                        info.addr = ip.clone();
+                                        TABLE.insert(ip.clone(), info);
+                                    }
+                                }
                                 send_msg(&mut stream, "ok").unwrap_or_default();
                             }
-                            Receive::Response(response) => {}
+                            Receive::Response(response) => {
+                                let mut data = TABLE.get_mut(&ip.clone()).unwrap();
+                                debug!("{response:?}");
+                                data.responses.push(response);
+                            }
                         }
-                        // match (json_data) {
-                        //     copterdata => {
-                        //         println!("received Info");
-                        //         match parse_raw(&msg_str) {
-                        //             Ok(data) => {
-                        //                 debug!("Data received from client is: {:?}, {:?}, {:?}, {:?}", data.name,data.battery,data.flight_mode,data.controller_state);
-                        //                 let data_name = data.name.clone();
-                        //                 name = data_name;
-                        //                 if !CHANNELS.contains_key(&data.name.clone()) { CHANNELS.insert(data.name.clone(), channel.0.to_owned()); }
-                        //                 TABLE.insert(ip.clone(), data);
-                        //                 send_msg(&mut stream, "ok").unwrap_or_default();
-                        //             }
-                        //             Err(e) => {
-                        //                 error!("Failed to parse message: {:?}", e);
-                        //             }
-                        //         }
-                        //     }
-                        //     Response => {
-                        //         println!("received response")
-                        //     }
-                        //     _ => {}
-                        // }
                     }
                     Err(e) => {
                         error!("Failed to parse message: {:?}", e);
@@ -302,7 +286,7 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
 
     warn!("Disconnected from {}", ip);
 
-    CHANNELS.remove(&name);
+    CHANNELS.remove(&ip.clone());
     TABLE.remove(&ip);
 }
 
@@ -333,6 +317,39 @@ fn get_connected_clients() -> Result<Vec<CopterData>, ()> {
     println!("sending clients");
     let values: Vec<_> = TABLE.clone().iter().map(|v| v.value().clone()).collect();
     Ok(values)
+}
+
+#[tauri::command(async)]
+async fn send_for_response(addr_name: &str, query: Query) -> Result<Response, ()> {
+    match CHANNELS.get(addr_name) {
+        None => {
+            Err(())
+        }
+        Some(sender) => {
+            sender.value().send(
+                InternalPass {
+                    addr_name: addr_name.to_string(),
+                    query: query.clone(),
+                }).unwrap_or_default();
+            // let el = TABLE.iter().position(|v| v.value().name == addr_name).unwrap().clone();
+            // let addr = TABLE.iter().last().unwrap().key().clone();
+            // info!("Wait for {:?}", el.key());
+            loop {
+                let copter = TABLE.get(addr_name).unwrap().clone();
+                let resps = copter.responses.iter().find(|v| v.id == query.id).to_owned();
+                match resps.clone() {
+                    Some(val) => {
+                        // println!("{:?}", resps);
+                        break Ok(val.clone());
+                    }
+                    _ => {
+                        async_std::task::sleep(Duration::from_millis(500)).await;
+                    }
+                }
+                // data = None;
+            }
+        }
+    }
 }
 
 #[tauri::command(async)]
