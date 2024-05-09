@@ -12,8 +12,7 @@ import {Check} from "@mui/icons-material";
 import ConnectWifiStep from "./ConnectWifiStep.tsx";
 import SettingUpOffboardStep from "./SettingUpOffboardStep.tsx";
 import SelectingCopterStep from "./SelectingCopterStep.tsx";
-import {CopterData, Query, Response, send_for_response, send_message_to_copter} from "./App.tsx";
-import {invoke} from "@tauri-apps/api/tauri";
+import {CopterData, Response, send_for_response, send_message_to_copter} from "./App.tsx";
 
 const QontoConnector = styled(StepConnector)(({theme}) => ({
     [`&.${stepConnectorClasses.alternativeLabel}`]: {
@@ -112,6 +111,7 @@ export default function SetupScreen(props: SetupScreenProps) {
     const isStepOptional = (step: number) => {
         return step === 1;
     };
+    // @ts-ignore
     var interval: NodeJS.Timeout | undefined = undefined;
     const isStepSkipped = (step: number) => {
         return skipped.has(step);

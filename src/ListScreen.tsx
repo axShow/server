@@ -6,16 +6,13 @@ import {
     ListItem, ListItemSecondaryAction,
     ListItemText, Tooltip, Typography,
 } from "@mui/material";
-import {invoke} from "@tauri-apps/api/tauri";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import GamepadIcon from "@mui/icons-material/Gamepad";
 import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
-import LoadingButton from '@mui/lab/LoadingButton';
 import FlashOnIcon from "@mui/icons-material/FlashOn";
 import BottomToolbar from "./ToolBar.tsx";
 import {CopterData, Query} from "./App.tsx";
-import {randomNumberBetween} from "@mui/x-data-grid/internals";
 
 interface ListScreenProps {
     setSelected: (selected: string[]) => void
@@ -52,6 +49,17 @@ export default function ListScreen(props: ListScreenProps) {
     }, []);
 
 
+    function getControllerState(controller_state: string) {
+        switch (controller_state) {
+            case "True":
+                return "OK"
+            case "False":
+                return "NOT CONNECTED"
+            default:
+                return controller_state
+        }
+    }
+
     return (<>
             <Box
                 sx={{
@@ -69,7 +77,7 @@ export default function ListScreen(props: ListScreenProps) {
                     <List>
                         {
                             props.copters.map((item) => (
-                                <ListItem key={item.addr} ar>
+                                <ListItem key={item.addr}>
                                     <Checkbox
                                         edge="start"
                                         checked={props.selected.indexOf(item.addr) !== -1}
@@ -82,8 +90,13 @@ export default function ListScreen(props: ListScreenProps) {
                                         primary={item.name}
                                         secondary={
                                             <Box display="flex" alignItems="center">
-                                                <BatteryFullIcon fontSize="small"
-                                                                 sx={{marginRight: 1}}/> {item.battery?.toFixed(2)}V
+                                                {item.battery !== null &&
+                                                    <>
+                                                    <BatteryFullIcon fontSize="small"
+                                                                  sx={{marginRight: 1}}/>
+                                                        {item.battery?.toFixed(2)}V
+                                                    </>
+                                                }
                                                 <Tooltip title={item.addr} enterDelay={1500}>
                                                 <CheckCircleOutlineIcon fontSize="small"
                                                                         sx={{
@@ -91,9 +104,13 @@ export default function ListScreen(props: ListScreenProps) {
                                                                             marginLeft: 2
                                                                         }}/>
                                                 </Tooltip>
-                                                {item.controller_state}
-                                                <GamepadIcon fontSize="small"
-                                                             sx={{marginRight: 1, marginLeft: 2}}/> {item.flight_mode}
+                                                {getControllerState(item.controller_state)}
+                                                {item.flight_mode !== null &&
+                                                    <>
+                                                    <GamepadIcon fontSize="small"
+                                                              sx={{marginRight: 1, marginLeft: 2}}/> {item.flight_mode}
+                                                    </>
+                                                }
                                             </Box>
                                         }
                                     />

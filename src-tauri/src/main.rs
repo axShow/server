@@ -2,10 +2,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod setup;
+// mod setup;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 
+use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::net::{IpAddr, TcpListener, TcpStream};
 use std::{thread};
 use std::io::{Read, Write};
@@ -31,10 +32,10 @@ extern crate log;
 extern crate core;
 
 use log::{error, info, warn};
-use mdns_sd::{ServiceDaemon, ServiceInfo};
+// use mdns_sd::{ServiceDaemon, ServiceInfo};
 use rand::Rng;
 use simpdiscoverylib::BeaconSender;
-use crate::setup::{is_clover_connected};
+// use crate::setup::{is_clover_connected};
 
 const BEACON_SERVICE_PORT: u16 = 6900;
 const BEACON_SERVICE_NAME: &str = "CopterShow";
@@ -84,7 +85,7 @@ struct InternalPass {
     addr_name: String,
     query: Query,
 }
-
+const BROADCAST_ADDRESS : &str = "255.255.0.0";
 
 fn default_battery() -> Option<f32> {
     Some(0.0)
@@ -168,7 +169,7 @@ fn main() {
     });
     thread::spawn(move || {
         if let Ok(beacon) = BeaconSender::new(BEACON_SERVICE_PORT,
-                                              BEACON_SERVICE_NAME.as_bytes(), 9002) {
+                                              BEACON_SERVICE_NAME.as_bytes(), 31255) {
             loop {
                 beacon.send_loop(Duration::from_secs(1)).unwrap_or({});
                 warn!("Error in broadcasting!");
