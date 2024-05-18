@@ -34,7 +34,7 @@ export interface Response {
     };
 }
 
-function generateRandomId() {
+export function generateRandomId() {
     return Math.floor(10000000 + Math.random() * (99999999 - 10000000 + 1))
 }
 

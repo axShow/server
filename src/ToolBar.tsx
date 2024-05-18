@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close";
 import {invoke} from "@tauri-apps/api/tauri";
+import { generateRandomId } from './App';
 
 interface AppBarProps {
     selected: string[],
@@ -71,17 +72,23 @@ export default function BottomToolbar(props: AppBarProps) {
         {title: "Takeoff", method_name: "takeoff", args: {}},
         {title: "Blink led", method_name: "led", args: {r: 255, g: 255, b: 255, effect: "flash"}},
         {title: "Run self check", method_name: "self_check", args: {}},
+        {title: "Flip (danger)", method_name: "flip", args: {}},
     ]
     const restartItems: PopoutItem[] = [
         {title: "Restart RPI", method_name: "reboot_system", args: {}},
         {title: "Restart FCU", method_name: "reboot_fcu", args: {}},
         {title: "Rerun show-client", method_name: "restart_client", args: {}},
+        {title: "Rerun clover-service", method_name: "restart_clover", args: {}},
     ]
     const emergencyItems: PopoutItem[] = [
         {title: "Emergency land", method_name: "emergency_land", args: {}},
         {title: "Force disarm", method_name: "set_arming", args: {state: false}},
         {title: "Land", method_name: "land", args: {}},
         {title: "Kill show-client", method_name: "kill_client", args: {}}
+    ]
+    const calibrationItems: PopoutItem[] = [
+        {title: "Calibrate gyro", method_name: "calibrate_gyro", args: {}},
+        {title: "Calibrate level", method_name: "calibrate_level", args: {}}
     ]
     const handlePopoverOpen = (event: React.MouseEvent, items: PopoutItem[]) => {
         setAnchorEl(event.currentTarget);
@@ -97,7 +104,7 @@ export default function BottomToolbar(props: AppBarProps) {
         invoke("send_mass_action", {
             addrNames: props.selected,
             query: {
-                id: 123,
+                id: generateRandomId(),
                 method_name: cmd.method_name,
                 args: cmd.args
             }
