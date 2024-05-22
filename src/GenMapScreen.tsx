@@ -9,6 +9,7 @@ import {
 } from '@mui/base/Unstable_NumberInput';
 import {FC, useEffect, useState} from "react";
 import {styled} from '@mui/system';
+import {CopterData} from "./App.tsx";
 // @ts-ignore
 // import AR from 'js-aruco'; // Assuming js-aruco2 is installed
 var AR = {
@@ -120,6 +121,7 @@ AR.Dictionary.prototype.generateSVG = function (id: number) {
 };
 interface GenMapScreenProp {
     selected: string[];
+    copters: CopterData[];
 }
 
 export default function GenMapScreen(props: GenMapScreenProp) {
@@ -278,13 +280,13 @@ export default function GenMapScreen(props: GenMapScreenProp) {
                 <Typography id={"other-label"} marginTop={2}>
                     Deploy:
                 </Typography>
-                <Button>
-                    Send to selected copters
+                <Button sx={{marginLeft: 3}}>
+                    Send to selected copters ({props.selected.length})
                 </Button>
-                <Button>
-                    Send to all copters
+                <Button sx={{marginLeft: 3}}>
+                    Send to all copters ({props.copters.length})
                 </Button>
-                <Button onClick={() => {
+                <Button sx={{marginLeft: 3}} onClick={() => {
                     setPrint(true);
                     setTimeout(function () {
                         print();

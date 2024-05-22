@@ -127,6 +127,8 @@ export default function BottomToolbar(props: AppBarProps) {
                     handlePopoverOpen(event, restartItems)}>Restart</Button>
                 <Button color="inherit" onClick={(event) =>
                     handlePopoverOpen(event, emergencyItems)}>Emergency</Button>
+                <Button color="inherit" onClick={(event) =>
+                    handlePopoverOpen(event, calibrationItems)}>Calibration</Button>
             </Toolbar>
         </AppBar>
     )

@@ -1,14 +1,16 @@
 //use std::any::Any;
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+// Prevents additional console window on Wipub(crate)pub(crate)ndowspub(crate) in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // mod setup;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+#[macro_use]
+mod files_parser;
 
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::net::{IpAddr, TcpListener, TcpStream};
-use std::{thread};
+use std::{fs, io, thread};
 use std::io::{Read, Write};
 use std::sync::{Arc};
 use std::sync::mpsc::{channel, Sender, Receiver};
@@ -18,6 +20,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::Result as ResultJson;
 use std::char;
 use std::io::Cursor;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
@@ -26,7 +29,7 @@ use dashmap::mapref::one::Ref;
 //#[macro_use]
 use lazy_static::lazy_static;
 use local_ip_address::local_ip;
-
+use files_parser::{get_all_files, parse_animations};
 #[macro_use]
 extern crate log;
 extern crate core;
@@ -185,7 +188,7 @@ fn main() {
     let ip = my_local_ip.to_string();
     let host_name = format!("{}._cshow._tcp.local.", instance_name);
     let port = 6900;
-    let properties = [("desc", "HOME Bonjour test")];
+    let properties = [("desc", "AXShow Controller")];
 
     let my_service = ServiceInfo::new(
         service_type,
@@ -210,7 +213,7 @@ fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![send_action, get_connected_clients, send_for_response,//wait_for,
-            send_mass_action])
+            send_mass_action, get_all_files, parse_animations])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(move |_app_handle, event| match event {
@@ -353,7 +356,11 @@ async fn send_for_response(addr_name: &str, query: Query) -> Result<Response, ()
     }
 }
 
-#[tauri::command(async)]
+
 fn wait_for_connection() {
     println!("loop")
 }
+// #[tauri::command()]
+// fn view_files() {
+//     println!("loop")
+// }

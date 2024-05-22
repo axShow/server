@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect} from "react";
 import {
     Box,
     Checkbox, IconButton,
@@ -60,6 +60,17 @@ export default function ListScreen(props: ListScreenProps) {
         }
     }
 
+    useEffect(() => {
+        // console.log("changed")
+        props.selected.forEach((copter) => {
+            // console.log(copter)
+            if (!props.copters.some((v) => v.addr == copter)){
+                // console.log("deleting")
+                props.setSelected(props.selected.filter(e => e !== copter))
+            }
+        })
+        // console.log(props.selected)
+    }, [props.copters.length]);
     return (<>
             <Box
                 sx={{

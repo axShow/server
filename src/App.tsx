@@ -12,6 +12,7 @@ import ShowScreen from "./ShowScreen.tsx";
 import SetupScreen from "./SetupScreen.tsx";
 import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import GenMapScreen from "./GenMapScreen.tsx";
+import RunScreen from "./RunScreen.tsx";
 
 export interface CopterData {
     addr: string;
@@ -77,7 +78,7 @@ function App() {
     async function update_copters() {
         let data: CopterData[] = (await invoke("get_connected_clients", {}))
         setCopters(data);
-        console.log(data)
+        // console.log(data)
     }
 
     function send_for_response(addr: string, query: Query) {
@@ -99,7 +100,7 @@ function App() {
 
         // invoke("wait_for", {});
         update_copters().then(); // Fetch data immediately
-        const intervalId = setInterval(update_copters, 500); // Fetch data every 0.5 seconds
+        const intervalId = setInterval(update_copters, 250); // Fetch data every 0.5 seconds
         return () => clearInterval(intervalId); // Clean up interval on unmount
     }, []);
 
@@ -113,8 +114,9 @@ function App() {
                            element={<ListScreen selected={selected} setSelected={setSelected} send={send_for_response}
                                                 copters={copters} update_copters={update_copters}/>}/>
                     <Route path="/setup" element={<SetupScreen copters={copters}/>}/>
-                    <Route path="/gen_map" element={<GenMapScreen selected={selected}/>}/>
+                    <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters}/>}/>
                     <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
+                    <Route path="/run" element={<RunScreen copters={copters}/>}/>
                 </Routes>
 
                 <AppBottomNavigation/>

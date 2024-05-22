@@ -18,11 +18,13 @@
     "@mui/material": "^5.15.14",
     "@mui/x-data-grid": "^7.0.0",
     "@tauri-apps/api": "^1",
+    "@types/react-vis": "^1.11.15",
     "aruco-marker": "^3.0.0",
     "js-aruco": "github:damianofalcioni/js-aruco2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.3"
+    "react-router-dom": "^6.22.3",
+    "react-vis": "^1.12.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1",
