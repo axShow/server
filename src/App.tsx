@@ -13,6 +13,7 @@ import SetupScreen from "./SetupScreen.tsx";
 import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import GenMapScreen from "./GenMapScreen.tsx";
 import RunScreen from "./RunScreen.tsx";
+import TuneScreen from "./TuneScreen.tsx";
 
 export interface CopterData {
     addr: string;
@@ -96,6 +97,17 @@ function App() {
         }).catch((r) => console.error(r));
     }
 
+    async function get_from_copter(addr: string, query: Query) {
+        return (await invoke("send_for_response", {
+            addrName: addr,
+            query: {
+                id: generateRandomId(),
+                method_name: query.method_name,
+                args: query.args
+            }
+        })) as Response
+    }
+
     React.useEffect(() => {
 
         // invoke("wait_for", {});
@@ -117,6 +129,7 @@ function App() {
                     <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters}/>}/>
                     <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
                     <Route path="/run" element={<RunScreen copters={copters}/>}/>
+                    <Route path="/tune" element={<TuneScreen send={get_from_copter}/>}/>
                 </Routes>
 
                 <AppBottomNavigation/>

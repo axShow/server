@@ -13,6 +13,8 @@ import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
 import FlashOnIcon from "@mui/icons-material/FlashOn";
 import BottomToolbar from "./ToolBar.tsx";
 import {CopterData, Query} from "./App.tsx";
+import {useNavigate} from "react-router-dom";
+import {Tune} from "@mui/icons-material";
 
 interface ListScreenProps {
     setSelected: (selected: string[]) => void
@@ -26,6 +28,7 @@ export default function ListScreen(props: ListScreenProps) {
     const handleUnselect = () => {
         props.setSelected([]);
     };
+    const navigate = useNavigate()
     const handleToggle = (value: string) => () => {
         const currentIndex = props.selected.indexOf(value);
         const newChecked = [...props.selected];
@@ -122,6 +125,10 @@ export default function ListScreen(props: ListScreenProps) {
                                                               sx={{marginRight: 1, marginLeft: 2}}/> {item.flight_mode}
                                                     </>
                                                 }
+                                                    <Tune fontSize="small"
+                                                                 sx={{marginRight: 1, marginLeft: 2}}/>
+                                                    <Typography sx={{textDecoration: "underline"}} onClick={() =>
+                                                    navigate("/tune", {state: {addr: item.addr, name: item.name}})}>TUNE</Typography>
                                             </Box>
                                         }
                                     />
