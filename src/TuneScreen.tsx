@@ -1,8 +1,19 @@
-import {Box, IconButton, Paper, Slider, Stack, Typography} from "@mui/material";
+import {
+    Box,
+    Checkbox,
+    CircularProgress,
+    FormControlLabel,
+    FormGroup,
+    IconButton,
+    Paper,
+    Slider,
+    Stack,
+    Typography
+} from "@mui/material";
 import {Query} from "./App.tsx";
 import {useLocation, useNavigate} from "react-router-dom";
 import {ArrowBack} from "@mui/icons-material";
-import React, {Fragment} from "react";
+import React, {ChangeEvent, FormEvent, Fragment, useEffect, useState} from "react";
 
 interface TuneScreenProps {
     send: (addr: string, query: Query) => Promise<Query>
@@ -27,9 +38,33 @@ interface TuneScreenProps {
 * - Если I слишком большой: вы можете увидеть медленные осцилляции
 * - Если I слишком маленький: можно заметить ошибку по выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это характеризуется тем, что на графиках желаемая скорость длительное время отличается от фактической.
 * */
+interface LpeFuses {
+    gps: boolean,
+    opticalflow: boolean,
+    visionposition: boolean,
+    landingtarget: boolean,
+    landdetector: boolean,
+    pubaglaslposdown: boolean,
+    gyrocompenstion: boolean,
+    baro: boolean,
+}
+interface PIDs {
+
+}
+interface TuningData {
+    lpe_fuses: LpeFuses,
+    pids: PIDs
+}
 export default function TuneScreen(props: TuneScreenProps) {
     const location = useLocation()
     const navigate = useNavigate()
+    const [data, setData] = useState<TuningData|null>(true)
+    useEffect(() => {
+
+    }, []);
+    const handleChangeLPE = (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log(event.target.name, event.target.checked)
+    }
     return (<Fragment>
             <Box
                 sx={{
@@ -43,62 +78,99 @@ export default function TuneScreen(props: TuneScreenProps) {
                     </IconButton>
                     <Typography marginLeft={1} variant={"h5"}>Tune copter "{location.state.name}"</Typography>
                 </Stack>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>P coefficient</Typography>
-                    <Typography marginLeft={2} gutterBottom>Коэффициент P (пропорциональный) используется для
-                        минимизации ошибки
-                        отслеживания и отвечает за скорость отклика, по этому должен быть установлен как можно выше, но
-                        без
-                        осцилляций.</Typography>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если P слишком большой: вы увидите высокочастотные осцилляции.
-                    </Typography>
-                    <br/>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если P слишком маленький: Аппарат медленно реагирует на входящее управление, а в режиме ACRO
-                        аппарат будет постоянно дрейфовать и вам нужно будет его корректировать, чтобы
-                        сохранить его уровень.
-                    </Typography>
-                    <Slider sx={{margin: 2, width: "96%"}}/>
-                </Paper>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>D coefficient</Typography>
-                    <Typography marginLeft={2} gutterBottom>Коэффициент D (дифференциальный) используется для
-                        демпфирования. Этот
-                        коэффициент должен быть как можно выше, но таким образом, что бы не было "перестрелов" по
-                        управлению.</Typography>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если D слишком большой: моторы могут подергиваться и сильно нагреваться во время полета,
-                        поскольку
-                        коэффициент D увеличивает шумы управления.
-                    </Typography>
-                    <br/>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если D слишком маленький: возникнут "перестрелы" по входящему управляющему сигналу.
-                    </Typography>
-                    <Slider sx={{margin: 2, width: "96%"}}/>
-                </Paper>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>I coefficient</Typography>
-                    <Typography marginLeft={2} gutterBottom>Коэффициент I сохраняет "воспоминания" об ошибке. Это
-                        значит, что элемент I
-                        увеличивается в случае, если желаемая скорость не устанавливается в течении некоторого времени.
-                        Этот
-                        параметр важен для режима ACRO, а также оказывает достаточно сильное влияние на режимы POSITION
-                        и
-                        OFFBOARD.</Typography>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если I слишком большой: вы можете увидеть медленные осцилляции
-                    </Typography>
-                    <br/>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если I слишком маленький: можно заметить ошибку по
-                        выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это
-                        характеризуется тем, что на графиках желаемая скорость длительное время отличается от
-                        фактической.
-                    </Typography>
-                    <Slider sx={{margin: 2, width: "96%"}}/>
-                </Paper>
+                {data ? <Box>
+                        <Paper sx={{margin: 2, padding: 2}}>
+                            <Typography variant={"h6"} gutterBottom>P coefficient</Typography>
+                            <Typography marginLeft={2} gutterBottom>Коэффициент P (пропорциональный) используется для
+                                минимизации ошибки
+                                отслеживания и отвечает за скорость отклика, по этому должен быть установлен как можно выше,
+                                но
+                                без
+                                осцилляций.</Typography>
+                            <Typography variant={"caption"} marginLeft={3}>
+                                - Если P слишком большой: вы увидите высокочастотные осцилляции.
+                            </Typography>
+                            <br/>
+                            <Typography variant={"caption"} marginLeft={3}>
+                                - Если P слишком маленький: Аппарат медленно реагирует на входящее управление, а в режиме
+                                ACRO
+                                аппарат будет постоянно дрейфовать и вам нужно будет его корректировать, чтобы
+                                сохранить его уровень.
+                            </Typography>
+                            <Slider sx={{margin: 2, width: "96%"}}/>
+                        </Paper>
+                        <Paper sx={{margin: 2, padding: 2}}>
+                            <Typography variant={"h6"} gutterBottom>D coefficient</Typography>
+                            <Typography marginLeft={2} gutterBottom>Коэффициент D (дифференциальный) используется для
+                                демпфирования. Этот
+                                коэффициент должен быть как можно выше, но таким образом, что бы не было "перестрелов" по
+                                управлению.</Typography>
+                            <Typography variant={"caption"} marginLeft={3}>
+                                - Если D слишком большой: моторы могут подергиваться и сильно нагреваться во время полета,
+                                поскольку
+                                коэффициент D увеличивает шумы управления.
+                            </Typography>
+                            <br/>
+                            <Typography variant={"caption"} marginLeft={3}>
+                                - Если D слишком маленький: возникнут "перестрелы" по входящему управляющему сигналу.
+                            </Typography>
+                            <Slider sx={{margin: 2, width: "96%"}}/>
+                        </Paper>
+                        <Paper sx={{margin: 2, padding: 2}}>
+                            <Typography variant={"h6"} gutterBottom>I coefficient</Typography>
+                            <Typography marginLeft={2} gutterBottom>Коэффициент I сохраняет "воспоминания" об ошибке. Это
+                                значит, что элемент I
+                                увеличивается в случае, если желаемая скорость не устанавливается в течении некоторого
+                                времени.
+                                Этот
+                                параметр важен для режима ACRO, а также оказывает достаточно сильное влияние на режимы
+                                POSITION
+                                и
+                                OFFBOARD.</Typography>
+                            <Typography variant={"caption"} marginLeft={3}>
+                                - Если I слишком большой: вы можете увидеть медленные осцилляции
+                            </Typography>
+                            <br/>
+                            <Typography variant={"caption"} marginLeft={3}>
+                                - Если I слишком маленький: можно заметить ошибку по
+                                выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это
+                                характеризуется тем, что на графиках желаемая скорость длительное время отличается от
+                                фактической.
+                            </Typography>
+                            <Slider sx={{margin: 2, width: "96%"}}/>
+                        </Paper>
+                        <Paper sx={{margin: 2, padding: 2}}>
+                            <Typography variant={"h6"} gutterBottom>LPE Fusion</Typography>
+                            <Typography marginLeft={2} gutterBottom>
+                                Параметры по которым полетный контроллер рассчитывает локальную позицию
+                            </Typography>
+                            <FormGroup row>
+                                {LpeFuses.map()}
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Gps"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Optical flow"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Vision position"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Landing target"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Land detector"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Pub agl as lpos down"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Gyro compensation"/>
+                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Baro"/>
+                            </FormGroup>
+                        </Paper>
+                    </Box> :
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: "center",
+                            justifyContent: "center",
+                            alignContent: "center",
+                            height: "80vh"
+                        }}
+                    >
+
+                        <CircularProgress/>
+                        <Typography marginTop={2}>Retrieving parameters...</Typography>
+                    </Box>}
             </Box>
             <Box height={60}/>
         </Fragment>

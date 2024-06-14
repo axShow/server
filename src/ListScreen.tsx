@@ -57,7 +57,7 @@ export default function ListScreen(props: ListScreenProps) {
             case "True":
                 return "OK"
             case "False":
-                return "NOT CONNECTED"
+                return "NO FCU"
             default:
                 return controller_state
         }
