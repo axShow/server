@@ -10,13 +10,14 @@ import {
     Stack,
     Typography
 } from "@mui/material";
-import {Query} from "./App.tsx";
+import {Query, Response} from "./App.tsx";
 import {useLocation, useNavigate} from "react-router-dom";
 import {ArrowBack} from "@mui/icons-material";
-import React, {ChangeEvent, FormEvent, Fragment, useEffect, useState} from "react";
+import React, {ChangeEvent, Fragment, useEffect, useState} from "react";
 
 interface TuneScreenProps {
-    send: (addr: string, query: Query) => Promise<Query>
+    send: (addr: string, query: Query) => Promise<Response>
+    show_snack: (msg: string) => {}
 }
 
 /*
@@ -39,31 +40,54 @@ interface TuneScreenProps {
 * - Если I слишком маленький: можно заметить ошибку по выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это характеризуется тем, что на графиках желаемая скорость длительное время отличается от фактической.
 * */
 interface LpeFuses {
-    gps: boolean,
-    opticalflow: boolean,
-    visionposition: boolean,
-    landingtarget: boolean,
-    landdetector: boolean,
-    pubaglaslposdown: boolean,
-    gyrocompenstion: boolean,
-    baro: boolean,
+    GPS: boolean,
+    OpticalFlow: boolean,
+    VisionPosition: boolean,
+    LandingTarget: boolean,
+    LandDetector: boolean,
+    PubAglAsLposDown: boolean,
+    FlowGyroCompensation: boolean,
+    Baro: boolean
 }
-interface PIDs {
 
+interface Coefficients {
+    MC_ROLLRATE_P: number
+    MC_ROLLRATE_I: number
+    MC_ROLLRATE_D: number
+    MC_PITCHRATE_P: number
+    MC_PITCHRATE_I: number
+    MC_PITCHRATE_D: number
+    MPC_XY_VEL_P: number
+    MPC_Z_VEL_P: number
+    MPC_THR_HOVER: number
 }
+
 interface TuningData {
-    lpe_fuses: LpeFuses,
-    pids: PIDs
+    lpe_fusion: LpeFuses,
+    coefficients: Coefficients
 }
+
 export default function TuneScreen(props: TuneScreenProps) {
     const location = useLocation()
     const navigate = useNavigate()
-    const [data, setData] = useState<TuningData|null>(true)
+    const [startData, setStartData] = useState<TuningData | null>(null)
+    const [modifiedData, setModifiedData] = useState<TuningData | null>(null)
     useEffect(() => {
-
+        props.send(location.state.addr, {method_name: "get_tune_params"}).then(data => {
+                if (!data.result.result) {
+                    props.show_snack("Error retreiving params: " + data.result.details)
+                    return
+                }
+                setStartData(data.result.payload as TuningData)
+                setModifiedData(data.result.payload as TuningData)
+            }
+        )
     }, []);
     const handleChangeLPE = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log(event.target.name, event.target.checked)
+        let data = modifiedData
+        if (data === null) return
+        data.lpe_fusion[event.target.name] = event.target.checked
+        setModifiedData(data)
     }
     return (<Fragment>
             <Box
@@ -78,7 +102,7 @@ export default function TuneScreen(props: TuneScreenProps) {
                     </IconButton>
                     <Typography marginLeft={1} variant={"h5"}>Tune copter "{location.state.name}"</Typography>
                 </Stack>
-                {data ? <Box>
+                {modifiedData ? <Box>
                         <Paper sx={{margin: 2, padding: 2}}>
                             <Typography variant={"h6"} gutterBottom>P coefficient</Typography>
                             <Typography marginLeft={2} gutterBottom>Коэффициент P (пропорциональный) используется для
@@ -145,15 +169,13 @@ export default function TuneScreen(props: TuneScreenProps) {
                                 Параметры по которым полетный контроллер рассчитывает локальную позицию
                             </Typography>
                             <FormGroup row>
-                                {LpeFuses.map()}
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Gps"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Optical flow"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Vision position"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Landing target"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Land detector"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Pub agl as lpos down"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Gyro compensation"/>
-                                <FormControlLabel control={<Checkbox defaultChecked onChange={handleChangeLPE}/>} label="Baro"/>
+                                {Object.entries(modifiedData.lpe_fusion).map(([obj, val]) => {
+                                    return    <FormControlLabel key={obj}
+                                                          control={<Checkbox checked={modifiedData.lpe_fusion[obj]} name={obj}
+                                                                             onChange={handleChangeLPE}/>}
+                                                          label={obj}/>
+                                    }
+                                )}
                             </FormGroup>
                         </Paper>
                     </Box> :
