@@ -14,7 +14,7 @@ use std::{fs, io, thread};
 use std::io::{Read, Write};
 use std::sync::{Arc};
 use std::sync::mpsc::{channel, Sender, Receiver};
-use std::time::Duration;
+use std::time::{Duration, Instant, UNIX_EPOCH};
 use std::str;
 use serde::{Serialize, Deserialize};
 use serde_json::Result as ResultJson;
@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
 use dashmap::DashMap;
-use dashmap::mapref::one::Ref;
+use dashmap::mapref::one::{Ref, RefMut};
 //#[macro_use]
 use lazy_static::lazy_static;
 use local_ip_address::local_ip;
@@ -51,6 +51,8 @@ lazy_static! {
 struct CopterData {
     #[serde(skip_deserializing)]
     addr: String,
+    #[serde(skip_deserializing)]
+    last_timestamp: i64,
     name: String,
     #[serde(default = "default_battery")]
     battery: Option<f32>,
@@ -60,7 +62,6 @@ struct CopterData {
     controller_state: String,
     #[serde(default = "Vec::new")]
     responses: Vec<Response>,
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -77,10 +78,23 @@ struct Query {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct Heartbeat {
+    timestamp: i64
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 enum Receive {
     Info(CopterData),
     Response(Response),
+    Heartbeat(Heartbeat),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
+enum Send {
+    Query(Query),
+    Heartbeat(Heartbeat),
 }
 
 #[derive(Debug)]
@@ -235,10 +249,12 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
     // let mut name: String = "".to_string();
     //TABLE.insert(ip.clone(), None);
     loop {
+        info!("loop");
         match channel.1.try_recv() {
             Ok(data) => {
                 info!("received {:?} for {}", data.query, data.addr_name);
-                send_msg(&mut stream, &serde_json::to_string(&data.query).unwrap_or("ok".to_string())).unwrap_or_default();
+                let send = Send::Query { 0: data.query };
+                send_msg(&mut stream, &serde_json::to_string(&send).unwrap_or("Error".to_string())).unwrap_or_default();
             }
             Err(_) => {}
         }
@@ -253,7 +269,7 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                                 let data_name = info.name.clone();
                                 // name = data_name;
                                 let data = TABLE.get_mut(&ip.clone());
-                                debug!("{data:?}");
+                                // debug!("{data:?}");
                                 if !CHANNELS.contains_key(&ip.clone()) { CHANNELS.insert(ip.clone(), channel.0.to_owned()); }
                                 match data {
                                     Some(mut copt_data) => {
@@ -268,12 +284,22 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                                         TABLE.insert(ip.clone(), info);
                                     }
                                 }
-                                send_msg(&mut stream, "ok").unwrap_or_default();
                             }
                             Receive::Response(response) => {
                                 let mut data = TABLE.get_mut(&ip.clone()).unwrap();
                                 debug!("{response:?}");
                                 data.responses.push(response);
+                            }
+                            Receive::Heartbeat(response) => {
+                                let data = TABLE.get_mut(&ip.clone());
+                                match data {
+                                    Some(mut copt_data) => {
+                                        copt_data.last_timestamp = response.timestamp;
+                                    }
+                                    _ => {}
+                                }
+                                let heartbeat = Send::Heartbeat { 0: Heartbeat {timestamp: 	std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64} };
+                                send_msg(&mut stream, &serde_json::to_string(&heartbeat).unwrap()).unwrap_or_default();
                             }
                         }
                     }
@@ -315,10 +341,27 @@ fn send_mass_action(addr_names: Vec<&str>, query: Query) {
         send_action(addr_name, query.clone());
     }
 }
-
+fn remove_old_data() {
+    let threshold = Duration::from_secs(10);
+    let now = std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    let threshold_ms = threshold.as_millis() as i64;
+    let mut to_remove = Vec::new();
+    for row in TABLE.clone().iter() {
+        println!("tresh {}", threshold_ms);
+        println!("now {}", now);
+        println!("last {}", row.last_timestamp);
+        if now - row.last_timestamp > threshold_ms {
+            to_remove.push(row.addr.clone());
+        }
+    }
+    for key in to_remove {
+        TABLE.remove(&key);
+    }
+}
 #[tauri::command]
 fn get_connected_clients() -> Result<Vec<CopterData>, ()> {
     println!("sending clients");
+    remove_old_data();
     let values: Vec<_> = TABLE.clone().iter().map(|v| v.value().clone()).collect();
     Ok(values)
 }
