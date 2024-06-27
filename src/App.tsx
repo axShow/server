@@ -25,7 +25,7 @@ export interface CopterData {
 
 export interface Query {
     method_name: string;
-    args?: object;
+    args?: any;
 }
 
 export interface Response {
