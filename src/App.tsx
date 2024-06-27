@@ -25,7 +25,7 @@ export interface CopterData {
 
 export interface Query {
     method_name: string;
-    args: object;
+    args?: any;
 }
 
 export interface Response {
@@ -33,6 +33,7 @@ export interface Response {
     result: {
         result: boolean;
         details: string;
+        payload?: unknown
     };
 }
 
@@ -103,7 +104,7 @@ function App() {
             query: {
                 id: generateRandomId(),
                 method_name: query.method_name,
-                args: query.args
+                args: query.args ? query.args : {}
             }
         })) as Response
     }
@@ -129,7 +130,7 @@ function App() {
                     <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters}/>}/>
                     <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
                     <Route path="/run" element={<RunScreen copters={copters}/>}/>
-                    <Route path="/tune" element={<TuneScreen send={get_from_copter}/>}/>
+                    <Route path="/tune" element={<TuneScreen send={get_from_copter} show_snack={setSnack}/>}/>
                 </Routes>
 
                 <AppBottomNavigation/>
