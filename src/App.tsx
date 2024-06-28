@@ -127,7 +127,7 @@ function App() {
                            element={<ListScreen selected={selected} setSelected={setSelected} send={send_for_response}
                                                 copters={copters} update_copters={update_copters}/>}/>
                     <Route path="/setup" element={<SetupScreen copters={copters}/>}/>
-                    <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters}/>}/>
+                    <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters} show_snack={setSnack} send={get_from_copter} />}/>
                     <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
                     <Route path="/run" element={<RunScreen copters={copters}/>}/>
                     <Route path="/tune" element={<TuneScreen send={get_from_copter} show_snack={setSnack}/>}/>

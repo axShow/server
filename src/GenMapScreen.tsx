@@ -9,7 +9,7 @@ import {
 } from '@mui/base/Unstable_NumberInput';
 import {FC, useEffect, useState} from "react";
 import {styled} from '@mui/system';
-import {CopterData} from "./App.tsx";
+import {CopterData, Query, Response} from "./App.tsx";
 // @ts-ignore
 // import AR from 'js-aruco'; // Assuming js-aruco2 is installed
 var AR = {
@@ -19,13 +19,15 @@ var AR = {
     tau: 0,
 
 
-    Dictionary: (dicName: string) => {dicName},
-    _initialize: (dicName: string) => {dicName},
+    Dictionary: (dicName: string) => {
+        dicName
+    },
+    _initialize: (dicName: string) => {
+        dicName
+    },
 };
 // this.AR = AR;
-AR.DICTIONARIES = {
-
-}
+AR.DICTIONARIES = {}
 // @ts-ignore
 AR.DICTIONARIES['ARUCO_4X4_1000'] = {
     nBits: 16,
@@ -34,55 +36,55 @@ AR.DICTIONARIES['ARUCO_4X4_1000'] = {
 };
 // @ts-ignore
 AR.Dictionary = function (dicName: string) {
-  this.codes = {};
-  this.codeList = [];
-  this.tau = 0;
-  this._initialize(dicName);
+    this.codes = {};
+    this.codeList = [];
+    this.tau = 0;
+    this._initialize(dicName);
 };
 AR.Dictionary.prototype._hex2bin = function (hex: any, nBits: any) {
-  return hex.toString(2).padStart(nBits, '0');
+    return hex.toString(2).padStart(nBits, '0');
 };
 
 AR.Dictionary.prototype._bytes2bin = function (byteList: any, nBits: any) {
-  var bits = '', byte;
-  for (byte of byteList) {
-    bits += byte.toString(2).padStart(bits.length + 8 > nBits?nBits - bits.length:8, '0');
-  }
-  return bits;
+    var bits = '', byte;
+    for (byte of byteList) {
+        bits += byte.toString(2).padStart(bits.length + 8 > nBits ? nBits - bits.length : 8, '0');
+    }
+    return bits;
 };
 // @ts-ignore
 AR.Dictionary.prototype._initialize = function (dicName: string) {
-  this.codes = {};
-  this.codeList = [];
-  this.tau = 0;
-  this.nBits = 0;
-  this.markSize = 0;
-  this.dicName = dicName;
-  // @ts-ignore
+    this.codes = {};
+    this.codeList = [];
+    this.tau = 0;
+    this.nBits = 0;
+    this.markSize = 0;
+    this.dicName = dicName;
+    // @ts-ignore
     var dictionary = AR.DICTIONARIES[dicName];
-  if (!dictionary)
-    throw 'The dictionary "' + dicName + '" is not recognized.';
+    if (!dictionary)
+        throw 'The dictionary "' + dicName + '" is not recognized.';
 
-  this.nBits = dictionary.nBits;
-  this.markSize = Math.sqrt(dictionary.nBits) + 2;
-  for (var i = 0; i < dictionary.codeList.length; i++) {
-    var code = null;
-    if (typeof dictionary.codeList[i] === 'number')
-      code = this._hex2bin(dictionary.codeList[i], dictionary.nBits);
-    if (typeof dictionary.codeList[i] === 'string')
-      code = this._hex2bin(parseInt(dictionary.codeList[i], 16), dictionary.nBits);
-    if (Array.isArray(dictionary.codeList[i]))
-      code = this._bytes2bin(dictionary.codeList[i], dictionary.nBits);
-    if (code === null)
-      throw 'Invalid code ' + i + ' in dictionary ' + dicName + ': ' + JSON.stringify(dictionary.codeList[i]);
-    if (code.length != dictionary.nBits)
-      throw 'The code ' + i + ' in dictionary ' + dicName + ' is not ' +  dictionary.nBits + ' bits long but ' + code.length + ': ' + code;
-    this.codeList.push(code);
-    this.codes[code] = {
-      id: i
-    };
-  }
-  this.tau = dictionary.tau || this._calculateTau();
+    this.nBits = dictionary.nBits;
+    this.markSize = Math.sqrt(dictionary.nBits) + 2;
+    for (var i = 0; i < dictionary.codeList.length; i++) {
+        var code = null;
+        if (typeof dictionary.codeList[i] === 'number')
+            code = this._hex2bin(dictionary.codeList[i], dictionary.nBits);
+        if (typeof dictionary.codeList[i] === 'string')
+            code = this._hex2bin(parseInt(dictionary.codeList[i], 16), dictionary.nBits);
+        if (Array.isArray(dictionary.codeList[i]))
+            code = this._bytes2bin(dictionary.codeList[i], dictionary.nBits);
+        if (code === null)
+            throw 'Invalid code ' + i + ' in dictionary ' + dicName + ': ' + JSON.stringify(dictionary.codeList[i]);
+        if (code.length != dictionary.nBits)
+            throw 'The code ' + i + ' in dictionary ' + dicName + ' is not ' + dictionary.nBits + ' bits long but ' + code.length + ': ' + code;
+        this.codeList.push(code);
+        this.codes[code] = {
+            id: i
+        };
+    }
+    this.tau = dictionary.tau || this._calculateTau();
 };
 // @ts-ignore
 AR.Dictionary.prototype.generateSVGForPrint = function (id: number) {
@@ -103,29 +105,31 @@ AR.Dictionary.prototype.generateSVGForPrint = function (id: number) {
     return svg;
 };
 AR.Dictionary.prototype.generateSVG = function (id: number) {
-  var code = this.codeList[id];
-  if (code == null)
-    throw 'The id "' + id + '" is not valid for the dictionary "' + this.dicName + '". ID must be between 0 and ' + (this.codeList.length-1) + ' included.';
-  var size = this.markSize - 2;
-  var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ (size+4) + ' ' + (size+4) + '">';
-  svg += '<rect x="0" y="0" width="' + (size+4) + '" height="' + (size+4) + '" fill="white"/>';
-  svg += '<rect x="1" y="1" width="' + (size+2) + '" height="' + (size+2) + '" fill="black"/>';
-  for(var y=0;y<size;y++) {
-    for(var x=0;x<size;x++) {
-      if (code[y*size+x]=='1')
-        svg += '<rect x="' + (x+2) + '" y="' + (y+2) + '" width="1" height="1" fill="white"/>';
+    var code = this.codeList[id];
+    if (code == null)
+        throw 'The id "' + id + '" is not valid for the dictionary "' + this.dicName + '". ID must be between 0 and ' + (this.codeList.length - 1) + ' included.';
+    var size = this.markSize - 2;
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + (size + 4) + ' ' + (size + 4) + '">';
+    svg += '<rect x="0" y="0" width="' + (size + 4) + '" height="' + (size + 4) + '" fill="white"/>';
+    svg += '<rect x="1" y="1" width="' + (size + 2) + '" height="' + (size + 2) + '" fill="black"/>';
+    for (var y = 0; y < size; y++) {
+        for (var x = 0; x < size; x++) {
+            if (code[y * size + x] == '1')
+                svg += '<rect x="' + (x + 2) + '" y="' + (y + 2) + '" width="1" height="1" fill="white"/>';
+        }
     }
-  }
-  svg += '</svg>';
-  return svg;
+    svg += '</svg>';
+    return svg;
 };
+
 interface GenMapScreenProp {
     selected: string[];
     copters: CopterData[];
+    send: (addr: string, query: Query) => Promise<Response>
+    show_snack: (msg: string) => void
 }
 
 export default function GenMapScreen(props: GenMapScreenProp) {
-    props;
     const [arucoCodes, setArucoCodes] = useState<number[][]>([]);
     const [xNum, setXNum] = useState<number>(2);
     const [yNum, setYNum] = useState<number>(2);
@@ -177,6 +181,38 @@ export default function GenMapScreen(props: GenMapScreenProp) {
         generateArucoCodesCorner(bottomLeft ? "bottomLeft" : "topLeft");
     }, [startId, xNum, yNum, bottomLeft]); // Re-generate on prop changes
 
+    const send_commands = async (addrs: string[]) => {
+        let success = 0;
+        let errors = 0;
+        for (const addr of addrs) {
+            const res = await props.send(addr, {
+                method_name: "generate_map",
+                args: {
+                    length: length,
+                    first: startId,
+                    markers_x: xNum,
+                    markers_y: yNum,
+                    dist_x: xDistance,
+                    dist_y: yDistance,
+                    bottom_left: bottomLeft
+                }
+            });
+            if (res.result.result) success += 1;
+            else errors += 1;
+            let error_text = "";
+            if (errors > 0) error_text = "Error: " + errors;
+            props.show_snack(`Sending map: ${success+errors}/${addrs.length}. ${error_text}`)
+        }
+        props.show_snack(`Map sended on ${addrs.length} copters. Success: ${success} | Errors: ${errors}`)
+    }
+
+    const send_all = async () => {
+        await send_commands(props.copters.map(val => val.addr))
+    }
+
+    const send_selected = async () => {
+        await send_commands(props.selected)
+    }
 
     return (
         <>
@@ -280,10 +316,10 @@ export default function GenMapScreen(props: GenMapScreenProp) {
                 <Typography id={"other-label"} marginTop={2}>
                     Deploy:
                 </Typography>
-                <Button sx={{marginLeft: 3}}>
+                <Button sx={{marginLeft: 3}} onClick={send_selected}>
                     Send to selected copters ({props.selected.length})
                 </Button>
-                <Button sx={{marginLeft: 3}}>
+                <Button sx={{marginLeft: 3}} onClick={send_all}>
                     Send to all copters ({props.copters.length})
                 </Button>
                 <Button sx={{marginLeft: 3}} onClick={() => {
