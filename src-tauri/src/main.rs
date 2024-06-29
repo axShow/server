@@ -249,7 +249,6 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
     // let mut name: String = "".to_string();
     //TABLE.insert(ip.clone(), None);
     loop {
-        info!("loop");
         match channel.1.try_recv() {
             Ok(data) => {
                 info!("received {:?} for {}", data.query, data.addr_name);
@@ -347,9 +346,6 @@ fn remove_old_data() {
     let threshold_ms = threshold.as_millis() as i64;
     let mut to_remove = Vec::new();
     for row in TABLE.clone().iter() {
-        println!("tresh {}", threshold_ms);
-        println!("now {}", now);
-        println!("last {}", row.last_timestamp);
         if now - row.last_timestamp > threshold_ms {
             to_remove.push(row.addr.clone());
         }

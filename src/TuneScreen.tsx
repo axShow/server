@@ -4,9 +4,8 @@ import {
     CircularProgress,
     FormControlLabel,
     FormGroup, Grid,
-    IconButton, Input,
+    IconButton,
     Paper,
-    Slider,
     Stack, TextField,
     Typography
 } from "@mui/material";
@@ -17,7 +16,7 @@ import React, {Fragment, useEffect, useState} from "react";
 
 interface TuneScreenProps {
     send: (addr: string, query: Query) => Promise<Response>
-    show_snack: (msg: string) => {}
+    show_snack: (msg: string) => void
 }
 
 /*
