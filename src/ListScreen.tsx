@@ -1,10 +1,10 @@
-import React, {useEffect} from "react";
+import React, {Fragment, useEffect, useState} from "react";
 import {
-    Box,
-    Checkbox, IconButton,
+    Box, Card,
+    Checkbox, Grid, IconButton,
     List,
     ListItem, ListItemSecondaryAction,
-    ListItemText, Tooltip, Typography,
+    ListItemText, Paper, Tooltip, Typography,
 } from "@mui/material";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -14,7 +14,7 @@ import FlashOnIcon from "@mui/icons-material/FlashOn";
 import BottomToolbar from "./ToolBar.tsx";
 import {CopterData, Query} from "./App.tsx";
 import {useNavigate} from "react-router-dom";
-import {Tune} from "@mui/icons-material";
+import {ArrowDownward, ArrowDropDown, ArrowRight, Tune, X} from "@mui/icons-material";
 
 interface ListScreenProps {
     setSelected: (selected: string[]) => void
@@ -41,7 +41,7 @@ export default function ListScreen(props: ListScreenProps) {
 
         props.setSelected(newChecked);
     };
-
+    const [advancedView, setAdvancedView] = useState<string | undefined>(undefined)
     React.useEffect(() => {
 
         props.update_copters(); // Fetch data immediately
@@ -61,6 +61,14 @@ export default function ListScreen(props: ListScreenProps) {
             default:
                 return controller_state
         }
+    }
+
+    const showAdvanced = (addr: string) => {
+        if (addr == advancedView) {
+            setAdvancedView(undefined)
+            return
+        }
+        setAdvancedView(addr)
     }
 
     useEffect(() => {
@@ -91,7 +99,8 @@ export default function ListScreen(props: ListScreenProps) {
                     <List>
                         {
                             props.copters.map((item) => (
-                                <ListItem key={item.addr}>
+                                <Paper key={item.addr} sx={{margin: 2}}>
+                                <ListItem>
                                     <Checkbox
                                         edge="start"
                                         checked={props.selected.indexOf(item.addr) !== -1}
@@ -100,6 +109,9 @@ export default function ListScreen(props: ListScreenProps) {
                                         inputProps={{'aria-labelledby': `checkbox-list-label-${item.addr}`}}
                                         onClick={handleToggle(item.addr)}
                                     />
+                                    <IconButton onClick={() => showAdvanced(item.addr)}>
+                                        {advancedView == item.addr ? <ArrowDropDown/> : <ArrowRight/>}
+                                    </IconButton>
                                     <ListItemText
                                         primary={item.name}
                                         secondary={
@@ -157,6 +169,12 @@ export default function ListScreen(props: ListScreenProps) {
                                         </IconButton>
                                     </ListItemSecondaryAction>
                                 </ListItem>
+                                    {advancedView == item.addr && <Grid sx={{padding: 2}} container>
+                                        <Grid item>
+                                            asd
+                                        </Grid>
+                                    </Grid>}
+                                </Paper>
                             ))
                         }
                     </List>
