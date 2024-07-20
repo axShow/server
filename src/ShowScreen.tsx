@@ -1,20 +1,29 @@
-import {Box, Button} from "@mui/material";
+import React from "react";
+import {Box, Tab} from "@mui/material";
+import {TabContext, TabList, TabPanel} from "@mui/lab";
+import UploadScreen from "./UploadScreen.tsx";
 import {CopterData} from "./App.tsx";
-import {useNavigate} from "react-router-dom";
+import RunShowScreen from "./RunShowScreen.tsx";
 
 interface ShowScreenProps {
-    selected: string[]
     copters: CopterData[]
 }
-export default function ShowScreen(props: ShowScreenProps){
-    const navigate = useNavigate();
-    // console.log(props.copters)
-    props
-    return (
-        <Box justifyContent="center" alignItems="center">
-            <Button fullWidth={true} sx={{marginTop: 1, marginBottom: 1}} onClick={()=>navigate("/gen_map")}>Generate map</Button>
-            <Button fullWidth={true} sx={{marginTop: 1, marginBottom: 1}} onClick={()=>navigate("/run")}>Run show</Button>
-        </Box>
-    )
 
+export default function ShowScreen(props: ShowScreenProps) {
+    const [value, setValue] = React.useState('1');
+    const handleChange = (event: React.SyntheticEvent, newValue: string) => {
+        setValue(newValue);
+    };
+    return (
+        <TabContext value={value}>
+            <Box sx={{borderBottom: 1, borderColor: 'divider'}}>
+                <TabList onChange={handleChange} aria-label="lab API tabs example" centered>
+                    <Tab label="SEND" value="1"/>
+                    <Tab label="RUN" value="2"/>
+                </TabList>
+            </Box>
+            <TabPanel value="1"><UploadScreen copters={props.copters}/></TabPanel>
+            <TabPanel value="2"><RunShowScreen copters={props.copters}/></TabPanel>
+        </TabContext>
+    )
 }

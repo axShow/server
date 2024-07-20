@@ -6,18 +6,20 @@ import {invoke} from "@tauri-apps/api/tauri";
 import {FlexibleXYPlot, LabelSeries, MarkSeries, MarkSeriesPoint, RVValueEventHandler} from 'react-vis';
 import {ChooseCopterDialog} from "./ChooseCopterDialog.tsx";
 
-interface ShowScreenProps {
+interface UploadScreenProps {
     copters: CopterData[]
 }
 
 interface Animation {
     animation_name: string,
+    path: string
     object_name: string,
     start_position: [number, number]
 }
 export interface DroneInAnimation {
     label: string,
     object_name: string,
+    anim_path: string,
     addr?: string
     x: number
     y: number
@@ -52,7 +54,7 @@ var StringToColor = (function () {
 //         console.log(event.payload)
 //     }
 // })
-export default function RunScreen(props: ShowScreenProps) {
+export default function UploadScreen(props: UploadScreenProps) {
     //const navigate = useNavigate();
     const [isHover, setIsHover] = useState(false);
     const [animations, setAnimations] = useState<Animation[]>([]);
@@ -74,6 +76,7 @@ export default function RunScreen(props: ShowScreenProps) {
             let double = changed.find(val =>  val.addr == newTarget)
             if (double !== undefined) {
                 double.addr = undefined
+                double.anim_path = ""
                 double.label = double.object_name
                 double.color = "rgba(255,255,255,0.11)"
             }
@@ -112,7 +115,8 @@ export default function RunScreen(props: ShowScreenProps) {
                                 color,
                                 object_name: animation.object_name,
                                 addr: copter?.addr,
-                                size: 5
+                                size: 5,
+                                anim_path: animation.path
                             }
                         }))
                     })
@@ -136,16 +140,22 @@ export default function RunScreen(props: ShowScreenProps) {
         };
 
     }, []);
+    const upload = () => {
+        assignedDrones.forEach((d) => {
+            invoke("upload_animation", {animPath: d.anim_path, drone: d.addr}).then()
+            console.log("upload on: " + d.addr + "animation: " + d.anim_path)
+        })
+    }
     // @ts-ignore
     return (
-        <Box margin={2}>
+        <Box>
             {(animations.length == 0 || isHover) && <Box
                 sx={{
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    width: '100%-2',
-                    height: "80vh",
+                    width: 'auto',
+                    height: "70vh",
                     border: `2px dashed ${isHover ? "#ccf" : "#ccc"}`,
                     borderRadius: 5,
                 }}
@@ -161,8 +171,7 @@ export default function RunScreen(props: ShowScreenProps) {
                             openDialog as RVValueEventHandler<MarkSeriesPoint> }/>
                         <LabelSeries allowOffsetToBeReversed data={assignedDrones} labelAnchorX={"middle"}/>
                     </FlexibleXYPlot>
-                    <Button sx={{marginRight: 2}}>UPLOAD ANIMATIONS TO COPTERS</Button>
-                    <Button sx={{marginRight: 2}}>RUN UPLOADED SHOW</Button>
+                    <Button sx={{marginRight: 2}} onClick={upload}>UPLOAD ANIMATIONS TO COPTERS</Button>
                 </Box>
             }
             <ChooseCopterDialog copters={props.copters} open={dialogAnObject !== undefined} id={"choose_copter_dialog"} onClose={reasignAnimation} value={dialogAnObject} />

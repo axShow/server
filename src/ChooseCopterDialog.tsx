@@ -8,7 +8,7 @@ import RadioGroup from '@mui/material/RadioGroup';
 import Radio from '@mui/material/Radio';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import {CopterData} from "./App.tsx";
-import {DroneInAnimation} from "./RunScreen.tsx";
+import {DroneInAnimation} from "./UploadScreen.tsx";
 
 export interface ChooseCopterDialogProps {
   id: string;

@@ -8,12 +8,13 @@ import {
 import React from "react";
 import AppBottomNavigation from "./BottomNavigationBar.tsx";
 import ListScreen from "./ListScreen.tsx";
-import ShowScreen from "./ShowScreen.tsx";
+import ToolsScreen from "./ToolsScreen.tsx";
 import SetupScreen from "./SetupScreen.tsx";
 import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import GenMapScreen from "./GenMapScreen.tsx";
-import RunScreen from "./RunScreen.tsx";
+import UploadScreen from "./UploadScreen.tsx";
 import TuneScreen from "./TuneScreen.tsx";
+import ShowScreen from "./ShowScreen.tsx";
 
 export interface CopterData {
     addr: string;
@@ -128,8 +129,8 @@ function App() {
                                                 copters={copters} update_copters={update_copters}/>}/>
                     <Route path="/setup" element={<SetupScreen copters={copters}/>}/>
                     <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters} show_snack={setSnack} send={get_from_copter} />}/>
-                    <Route path="/show" element={<ShowScreen copters={copters} selected={selected}/>}/>
-                    <Route path="/run" element={<RunScreen copters={copters}/>}/>
+                    <Route path="/tools" element={<ToolsScreen copters={copters} selected={selected}/>}/>
+                    <Route path="/show" element={<ShowScreen copters={copters}/>}/>
                     <Route path="/tune" element={<TuneScreen send={get_from_copter} show_snack={setSnack}/>}/>
                 </Routes>
 
@@ -146,7 +147,7 @@ function App() {
             {/*{currentTab == 1 &&*/}
             {/*    <ListScreen selected={selected} setSelected={setSelected}*/}
             {/*                copters={copters} update_copters={update_copters}/>}*/}
-            {/*{currentTab == 2 && <ShowScreen copters={copters} selected={selected}/>}*/}
+            {/*{currentTab == 2 && <ToolsScreen copters={copters} selected={selected}/>}*/}
         </ThemeProvider>
     );
 }

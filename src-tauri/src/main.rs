@@ -17,10 +17,10 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use std::time::{Duration, Instant, UNIX_EPOCH};
 use std::str;
 use serde::{Serialize, Deserialize};
-use serde_json::Result as ResultJson;
 use std::char;
 use std::io::Cursor;
 use std::path::PathBuf;
+use serde_json::Result as ResultJson;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use byteorder::{ReadBytesExt, LittleEndian, WriteBytesExt};
@@ -36,7 +36,7 @@ extern crate core;
 
 use log::{error, info, warn};
 // use mdns_sd::{ServiceDaemon, ServiceInfo};
-use rand::Rng;
+use rand::{random, Rng};
 use simpdiscoverylib::BeaconSender;
 // use crate::setup::{is_clover_connected};
 
@@ -79,7 +79,7 @@ struct Query {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Heartbeat {
-    timestamp: i64
+    timestamp: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -102,7 +102,7 @@ struct InternalPass {
     addr_name: String,
     query: Query,
 }
-const BROADCAST_ADDRESS : &str = "255.255.0.0";
+const BROADCAST_ADDRESS: &str = "255.255.0.0";
 
 fn default_battery() -> Option<f32> {
     Some(0.0)
@@ -193,10 +193,10 @@ fn main() {
             }
         }
     });
-// Create a daemon
+    // Create a daemon
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-//
-// Create a service Info.
+    //
+    // Create a service Info.
     let service_type = "_cshow._tcp.local.";
     let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
     let ip = my_local_ip.to_string();
@@ -227,7 +227,7 @@ fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![send_action, get_connected_clients, send_for_response,//wait_for,
-            send_mass_action, get_all_files, parse_animations])
+            send_mass_action, get_all_files, parse_animations, upload_animation])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(move |_app_handle, event| match event {
@@ -297,7 +297,7 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                                     }
                                     _ => {}
                                 }
-                                let heartbeat = Send::Heartbeat { 0: Heartbeat {timestamp: 	std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64} };
+                                let heartbeat = Send::Heartbeat { 0: Heartbeat { timestamp: std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64 } };
                                 send_msg(&mut stream, &serde_json::to_string(&heartbeat).unwrap()).unwrap_or_default();
                             }
                         }
@@ -395,7 +395,35 @@ async fn send_for_response(addr_name: &str, query: Query) -> Result<Response, ()
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct UploadArgs {
+    data: String
+}
 
+#[tauri::command()]
+fn upload_animation(anim_path: String, drone: &str) {
+    match CHANNELS.get(drone) {
+        None => {}
+        Some(sender) => {
+            let path = PathBuf::from(anim_path.clone());
+            if path.is_file() {
+                let file = fs::read_to_string(&path).unwrap_or_default();
+                sender.value().send(
+                    InternalPass {
+                        addr_name: drone.to_string(),
+                        query: Query {
+                            id: random::<i32>(),
+                            method_name: "upload_animation".to_string(),
+                            args: serde_json::to_value(UploadArgs {
+                                data: file
+                            }).unwrap(),
+                        },
+                    }).unwrap_or_default();
+
+            }
+        }
+    }
+}
 fn wait_for_connection() {
     println!("loop")
 }

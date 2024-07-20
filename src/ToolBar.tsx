@@ -13,10 +13,12 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import {invoke} from "@tauri-apps/api/tauri";
 import { generateRandomId } from './App';
+import {SelectAll} from "@mui/icons-material";
 
 interface AppBarProps {
     selected: string[],
     handleUnselect: () => void
+    handleSelectAll: () => void
 }
 
 interface PopoutItem {
@@ -115,6 +117,9 @@ export default function BottomToolbar(props: AppBarProps) {
             <Toolbar>
                 <IconButton color="inherit" onClick={props.handleUnselect} style={{marginRight: '16px'}}>
                     <CloseIcon/>
+                </IconButton>
+                <IconButton color="inherit" onClick={props.handleSelectAll} style={{marginRight: '16px'}}>
+                    <SelectAll/>
                 </IconButton>
                 <Typography variant="body1" component="div" sx={{flexGrow: 1}}>
                     {props.selected.length} copters selected
