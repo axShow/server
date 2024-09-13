@@ -62,6 +62,10 @@ struct CopterData {
     controller_state: String,
     #[serde(default = "Vec::new")]
     responses: Vec<Response>,
+    x: f32,
+    y: f32,
+    z: f32,
+    color: (i16, i16, i16),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -276,6 +280,10 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                                         copt_data.battery = info.battery;
                                         copt_data.controller_state = info.controller_state;
                                         copt_data.flight_mode = info.flight_mode;
+                                        copt_data.x = info.x;
+                                        copt_data.y = info.y;
+                                        copt_data.z = info.z;
+                                        copt_data.color = info.color;
                                         // info!("{:?}", copt_data.responses);
                                     }
                                     None => {
@@ -356,7 +364,6 @@ fn remove_old_data() {
 }
 #[tauri::command]
 fn get_connected_clients() -> Result<Vec<CopterData>, ()> {
-    println!("sending clients");
     remove_old_data();
     let values: Vec<_> = TABLE.clone().iter().map(|v| v.value().clone()).collect();
     Ok(values)

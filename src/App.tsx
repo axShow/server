@@ -22,6 +22,10 @@ export interface CopterData {
     battery?: number | null;
     flight_mode: string;
     controller_state: string;
+    x: number;
+    y: number;
+    z: number;
+    color: number[];
 }
 
 export interface Query {
@@ -81,7 +85,7 @@ function App() {
     async function update_copters() {
         let data: CopterData[] = (await invoke("get_connected_clients", {}))
         setCopters(data);
-        // console.log(data)
+        console.log(data)
     }
 
     function send_for_response(addr: string, query: Query) {

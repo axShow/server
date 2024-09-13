@@ -14,7 +14,7 @@ import FlashOnIcon from "@mui/icons-material/FlashOn";
 import BottomToolbar from "./ToolBar.tsx";
 import {CopterData, Query} from "./App.tsx";
 import {useNavigate} from "react-router-dom";
-import {ArrowDownward, ArrowDropDown, ArrowRight, Tune, X} from "@mui/icons-material";
+import {ArrowDownward, ArrowDropDown, ArrowRight, ColorLens, LocationOn, Tune, X} from "@mui/icons-material";
 
 interface ListScreenProps {
     setSelected: (selected: string[]) => void
@@ -75,7 +75,7 @@ export default function ListScreen(props: ListScreenProps) {
         // console.log("changed")
         props.selected.forEach((copter) => {
             // console.log(copter)
-            if (!props.copters.some((v) => v.addr == copter)){
+            if (!props.copters.some((v) => v.addr == copter)) {
                 // console.log("deleting")
                 props.setSelected(props.selected.filter(e => e !== copter))
             }
@@ -100,78 +100,98 @@ export default function ListScreen(props: ListScreenProps) {
                         {
                             props.copters.map((item) => (
                                 <Paper key={item.addr} sx={{margin: 2}}>
-                                <ListItem>
-                                    <Checkbox
-                                        edge="start"
-                                        checked={props.selected.indexOf(item.addr) !== -1}
-                                        tabIndex={-1}
-                                        disableRipple
-                                        inputProps={{'aria-labelledby': `checkbox-list-label-${item.addr}`}}
-                                        onClick={handleToggle(item.addr)}
-                                    />
-                                    <IconButton onClick={() => showAdvanced(item.addr)}>
-                                        {advancedView == item.addr ? <ArrowDropDown/> : <ArrowRight/>}
-                                    </IconButton>
-                                    <ListItemText
-                                        primary={item.name}
-                                        secondary={
-                                            <Box display="flex" alignItems="center">
-                                                {item.battery !== null &&
-                                                    <>
-                                                    <BatteryFullIcon fontSize="small"
-                                                                  sx={{marginRight: 1}}/>
-                                                        {item.battery?.toFixed(2)}V
-                                                    </>
-                                                }
-                                                <Tooltip title={item.addr} enterDelay={1500}>
-                                                <CheckCircleOutlineIcon fontSize="small"
-                                                                        sx={{
-                                                                            marginRight: 1,
-                                                                            marginLeft: 2
-                                                                        }}/>
-                                                </Tooltip>
-                                                {getControllerState(item.controller_state)}
-                                                {item.flight_mode !== null &&
-                                                    <>
-                                                    <GamepadIcon fontSize="small"
-                                                              sx={{marginRight: 1, marginLeft: 2}}/> {item.flight_mode}
-                                                    </>
-                                                }
+                                    <ListItem>
+                                        <Checkbox
+                                            edge="start"
+                                            checked={props.selected.indexOf(item.addr) !== -1}
+                                            tabIndex={-1}
+                                            disableRipple
+                                            inputProps={{'aria-labelledby': `checkbox-list-label-${item.addr}`}}
+                                            onClick={handleToggle(item.addr)}
+                                        />
+                                        <IconButton onClick={() => showAdvanced(item.addr)}>
+                                            {advancedView == item.addr ? <ArrowDropDown/> : <ArrowRight/>}
+                                        </IconButton>
+                                        <ListItemText
+                                            primary={item.name}
+                                            secondary={
+                                                <Box display="flex" alignItems="center">
+                                                    {item.battery !== null &&
+                                                        <>
+                                                            <BatteryFullIcon fontSize="small"
+                                                                             sx={{marginRight: 1}}/>
+                                                            {item.battery?.toFixed(2)}V
+                                                        </>
+                                                    }
+                                                    <Tooltip title={item.addr} enterDelay={1500}>
+                                                        <CheckCircleOutlineIcon fontSize="small"
+                                                                                sx={{
+                                                                                    marginRight: 1,
+                                                                                    marginLeft: 2
+                                                                                }}/>
+                                                    </Tooltip>
+                                                    {getControllerState(item.controller_state)}
+                                                    {item.flight_mode !== null &&
+                                                        <>
+                                                            <GamepadIcon fontSize="small"
+                                                                         sx={{
+                                                                             marginRight: 1,
+                                                                             marginLeft: 2
+                                                                         }}/> {item.flight_mode}
+                                                        </>
+                                                    }
                                                     <Tune fontSize="small"
-                                                                 sx={{marginRight: 1, marginLeft: 2}}/>
+                                                          sx={{marginRight: 1, marginLeft: 2}}/>
                                                     <Typography sx={{textDecoration: "underline"}} onClick={() =>
-                                                    navigate("/tune", {state: {addr: item.addr, name: item.name}})}>TUNE</Typography>
-                                            </Box>
-                                        }
-                                    />
-                                    <ListItemSecondaryAction>
-                                        <IconButton edge="end" color="primary" style={{marginRight: '8px'}}
-                                                    onClick={() => props.send(item.addr, {method_name: "takeoff", args: {}})}>
-                                            <FlightTakeoffIcon/>
-                                        </IconButton>
-
-                                        <IconButton edge="end" color="primary" style={{marginRight: '4px'}}
-                                                    onClick={() => {
-                                                        props.send(
-                                                        item.addr,
-                                                        {
-                                                            method_name: "led",
-                                                            args: {
-                                                                r: 255,
-                                                                g: 255,
-                                                                b: 255,
-                                                                effect: "flash"
+                                                        navigate("/tune", {
+                                                            state: {
+                                                                addr: item.addr,
+                                                                name: item.name
                                                             }
-                                                        }
-                                                    )
-                                                    }}>
-                                            <FlashOnIcon/>
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
-                                </ListItem>
+                                                        })}>TUNE</Typography>
+                                                </Box>
+                                            }
+                                        />
+                                        <ListItemSecondaryAction>
+                                            <IconButton edge="end" color="primary" style={{marginRight: '8px'}}
+                                                        onClick={() => props.send(item.addr, {
+                                                            method_name: "takeoff",
+                                                            args: {}
+                                                        })}>
+                                                <FlightTakeoffIcon/>
+                                            </IconButton>
+
+                                            <IconButton edge="end" color="primary" style={{marginRight: '4px'}}
+                                                        onClick={() => {
+                                                            props.send(
+                                                                item.addr,
+                                                                {
+                                                                    method_name: "led",
+                                                                    args: {
+                                                                        r: 255,
+                                                                        g: 255,
+                                                                        b: 255,
+                                                                        effect: "flash"
+                                                                    }
+                                                                }
+                                                            )
+                                                        }}>
+                                                <FlashOnIcon/>
+                                            </IconButton>
+                                        </ListItemSecondaryAction>
+                                    </ListItem>
                                     {advancedView == item.addr && <Grid sx={{padding: 2}} container>
-                                        <Grid item>
-                                            asd
+                                        <Grid item sx={{display: "flex"}}>
+                                                <LocationOn/>
+                                            <Typography>
+                                                X: {item.x.toFixed(3)} Y: {item.y.toFixed(3)} Z: {item.z.toFixed(3)}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid item sx={{display: "flex"}}>
+                                                <ColorLens/>
+                                            <Typography>
+                                                RGB: {item.color.toString()}
+                                            </Typography>
                                         </Grid>
                                     </Grid>}
                                 </Paper>
@@ -179,7 +199,7 @@ export default function ListScreen(props: ListScreenProps) {
                         }
                     </List>
                     {props.copters.length == 0 && <Typography align="center">No connected copters</Typography>}
-            <Box height={props.selected.length >= 1 ? 120 : 40}/>
+                    <Box height={props.selected.length >= 1 ? 120 : 40}/>
                 </Box>
             </Box>
             {props.selected.length >= 1 && (
