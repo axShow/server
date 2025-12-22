@@ -12,7 +12,7 @@ import ToolsScreen from "./ToolsScreen.tsx";
 import SetupScreen from "./SetupScreen.tsx";
 import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import GenMapScreen from "./GenMapScreen.tsx";
-import UploadScreen from "./UploadScreen.tsx";
+// import UploadScreen from "./UploadScreen.tsx";
 import TuneScreen from "./TuneScreen.tsx";
 import ShowScreen from "./ShowScreen.tsx";
 

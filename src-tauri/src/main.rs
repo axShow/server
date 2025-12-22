@@ -28,7 +28,7 @@ use dashmap::DashMap;
 use dashmap::mapref::one::{Ref, RefMut};
 //#[macro_use]
 use lazy_static::lazy_static;
-use local_ip_address::local_ip;
+use local_ip_address::list_afinet_netifas;
 use files_parser::{get_all_files, parse_animations};
 #[macro_use]
 extern crate log;
@@ -53,6 +53,8 @@ struct CopterData {
     addr: String,
     #[serde(skip_deserializing)]
     last_timestamp: i64,
+    #[serde(skip_deserializing)]
+    time_offset: i64,
     name: String,
     #[serde(default = "default_battery")]
     battery: Option<f32>,
@@ -170,11 +172,21 @@ fn main() {
     std::env::set_var("RUST_LOG", "axshow=trace");
     env_logger::init();
 
-    let my_local_ip = local_ip().unwrap_or(IpAddr::V4 { 0: "127.0.0.1".parse().unwrap() });
+    // Получаем все локальные IP-адреса
+    let local_ips = list_afinet_netifas().unwrap_or_else(|_| {
+        warn!("Failed to get network interfaces, using fallback IP");
+        vec![("lo".to_string(), IpAddr::V4("127.0.0.1".parse().unwrap()))]
+    });
+    
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + &*BEACON_SERVICE_PORT.to_string()).unwrap();
     info!("Listening on: {}", listener.local_addr().unwrap());
     warn!("Broadcast set port to: {}", BEACON_SERVICE_PORT);
-    warn!("Zeroconf set ip to: {}", my_local_ip);
+    
+    // Логируем все найденные IP-адреса
+    for (interface, ip) in &local_ips {
+        warn!("Found interface {} with IP: {}", interface, ip);
+    }
+    
     thread::spawn(move || {
         for stream in listener.incoming() {
             let (tx, rx): (Sender<InternalPass>, Receiver<InternalPass>) = channel();
@@ -197,28 +209,42 @@ fn main() {
             }
         }
     });
+    
     // Create a daemon
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-    //
-    // Create a service Info.
+    
+    // Create service Info for each network interface
     let service_type = "_cshow._tcp.local.";
     let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
-    let ip = my_local_ip.to_string();
-    let host_name = format!("{}._cshow._tcp.local.", instance_name);
     let port = 6900;
     let properties = [("desc", "AXShow Controller")];
-
-    let my_service = ServiceInfo::new(
-        service_type,
-        &*instance_name,
-        &*host_name,
-        ip,
-        port,
-        &properties[..],
-    ).unwrap();
-
-    // Register with the daemon, which publishes the service.
-    mdns.register(my_service).expect("Failed to register our service");
+    
+    let mut registered_services = Vec::new();
+    
+    for (interface, ip) in local_ips {
+        let ip_str = ip.to_string();
+        let host_name = format!("{}._cshow._tcp.local.", instance_name);
+        
+        let my_service = ServiceInfo::new(
+            service_type,
+            &*instance_name,
+            &*host_name,
+            ip_str,
+            port,
+            &properties[..],
+        ).unwrap();
+        
+        // Register with the daemon, which publishes the service.
+        match mdns.register(my_service.clone()) {
+            Ok(_) => {
+                info!("Successfully registered mdns service on interface {} with IP {}", interface, ip);
+                registered_services.push((instance_name.clone(), service_type.to_string()));
+            }
+            Err(e) => {
+                error!("Failed to register mdns service on interface {} with IP {}: {:?}", interface, ip, e);
+            }
+        }
+    }
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
@@ -237,7 +263,14 @@ fn main() {
         .run(move |_app_handle, event| match event {
             tauri::RunEvent::ExitRequested { .. } => {
                 sleep(Duration::from_secs(1));
-                mdns.unregister(&*format!("{}.{}", instance_name, service_type)).expect("Error when unregistering");
+                // Unregister all services
+                for (instance_name, service_type) in &registered_services {
+                    let _receiver = mdns.unregister(&*format!("{}.{}", instance_name, service_type));
+                    // Можно добавить обработку статуса удаления если нужно
+                    // if let Ok(status) = receiver.recv() {
+                    //     info!("Service unregistered with status: {:?}", status);
+                    // }
+                }
                 mdns.shutdown().expect("Error shutting down");
                 warn!("Bye!");
             }
@@ -302,6 +335,7 @@ fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver
                                 match data {
                                     Some(mut copt_data) => {
                                         copt_data.last_timestamp = response.timestamp;
+                                        copt_data.time_offset = response.timestamp - std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
                                     }
                                     _ => {}
                                 }
@@ -354,10 +388,12 @@ fn remove_old_data() {
     let threshold_ms = threshold.as_millis() as i64;
     let mut to_remove = Vec::new();
     for row in TABLE.clone().iter() {
-        if now - row.last_timestamp > threshold_ms {
+        // info!("{} > {}", now - row.last_timestamp + row.time_offset, threshold_ms);
+        if now - row.last_timestamp + row.time_offset > threshold_ms {
             to_remove.push(row.addr.clone());
         }
     }
+    // info!("To remove: {:?} pcs", to_remove.len());
     for key in to_remove {
         TABLE.remove(&key);
     }

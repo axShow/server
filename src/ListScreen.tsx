@@ -1,11 +1,4 @@
-import React, {Fragment, useEffect, useState} from "react";
-import {
-    Box, Card,
-    Checkbox, Grid, IconButton,
-    List,
-    ListItem, ListItemSecondaryAction,
-    ListItemText, Paper, Tooltip, Typography,
-} from "@mui/material";
+import React, {useEffect, useState} from "react";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import GamepadIcon from "@mui/icons-material/Gamepad";
@@ -14,7 +7,7 @@ import FlashOnIcon from "@mui/icons-material/FlashOn";
 import BottomToolbar from "./ToolBar.tsx";
 import {CopterData, Query} from "./App.tsx";
 import {useNavigate} from "react-router-dom";
-import {ArrowDownward, ArrowDropDown, ArrowRight, ColorLens, LocationOn, Tune, X} from "@mui/icons-material";
+import {ArrowDropDown, ArrowRight, ColorLens, LocationOn, Tune} from "@mui/icons-material";
 
 interface ListScreenProps {
     setSelected: (selected: string[]) => void
@@ -28,6 +21,11 @@ export default function ListScreen(props: ListScreenProps) {
     const handleUnselect = () => {
         props.setSelected([]);
     };
+    
+    const handleSelectAll = () => {
+        props.setSelected(props.copters.map(copter => copter.addr));
+    };
+    
     const navigate = useNavigate()
     const handleToggle = (value: string) => () => {
         const currentIndex = props.selected.indexOf(value);
@@ -82,129 +80,150 @@ export default function ListScreen(props: ListScreenProps) {
         })
         // console.log(props.selected)
     }, [props.copters.length]);
-    return (<>
-            <Box
-                sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: '100vh', // Use full viewport height
-                }}
-            >
-                <Box
-                    sx={{
-                        overflowY: 'auto', // Enable vertical scrolling
-                        flexGrow: 1, // Take up all available space
-                    }}
-                >
-                    <List>
-                        {
-                            props.copters.map((item) => (
-                                <Paper key={item.addr} sx={{margin: 2}}>
-                                    <ListItem>
-                                        <Checkbox
-                                            edge="start"
-                                            checked={props.selected.indexOf(item.addr) !== -1}
-                                            tabIndex={-1}
-                                            disableRipple
-                                            inputProps={{'aria-labelledby': `checkbox-list-label-${item.addr}`}}
-                                            onClick={handleToggle(item.addr)}
-                                        />
-                                        <IconButton onClick={() => showAdvanced(item.addr)}>
-                                            {advancedView == item.addr ? <ArrowDropDown/> : <ArrowRight/>}
-                                        </IconButton>
-                                        <ListItemText
-                                            primary={item.name}
-                                            secondary={
-                                                <Box display="flex" alignItems="center">
-                                                    {item.battery !== null &&
-                                                        <>
-                                                            <BatteryFullIcon fontSize="small"
-                                                                             sx={{marginRight: 1}}/>
-                                                            {item.battery?.toFixed(2)}V
-                                                        </>
+    
+    return (
+        <div className="flex flex-col h-screen bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-4">
+                <div className="space-y-4">
+                    {props.copters.map((item) => (
+                        <div key={item.addr} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                            <div className="p-4">
+                                <div className="flex items-center space-x-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={props.selected.indexOf(item.addr) !== -1}
+                                        onChange={handleToggle(item.addr)}
+                                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    
+                                    <button 
+                                        onClick={() => showAdvanced(item.addr)}
+                                        className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                                    >
+                                        {advancedView == item.addr ? 
+                                            <ArrowDropDown className="w-5 h-5" /> : 
+                                            <ArrowRight className="w-5 h-5" />
+                                        }
+                                    </button>
+                                    
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                            {item.name}
+                                        </h3>
+                                        
+                                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                            {item.battery !== null && (
+                                                <div className="flex items-center space-x-1">
+                                                    <BatteryFullIcon className="w-4 h-4 text-green-500" />
+                                                    <span className="font-medium">{item.battery?.toFixed(2)}V</span>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="flex items-center space-x-1">
+                                                <CheckCircleOutlineIcon className="w-4 h-4 text-blue-500" />
+                                                <span>{getControllerState(item.controller_state)}</span>
+                                            </div>
+                                            
+                                            {item.flight_mode !== null && (
+                                                <div className="flex items-center space-x-1">
+                                                    <GamepadIcon className="w-4 h-4 text-purple-500" />
+                                                    <span>{item.flight_mode}</span>
+                                                </div>
+                                            )}
+                                            
+                                            <button 
+                                                onClick={() => navigate("/tune", {
+                                                    state: {
+                                                        addr: item.addr,
+                                                        name: item.name
                                                     }
-                                                    <Tooltip title={item.addr} enterDelay={1500}>
-                                                        <CheckCircleOutlineIcon fontSize="small"
-                                                                                sx={{
-                                                                                    marginRight: 1,
-                                                                                    marginLeft: 2
-                                                                                }}/>
-                                                    </Tooltip>
-                                                    {getControllerState(item.controller_state)}
-                                                    {item.flight_mode !== null &&
-                                                        <>
-                                                            <GamepadIcon fontSize="small"
-                                                                         sx={{
-                                                                             marginRight: 1,
-                                                                             marginLeft: 2
-                                                                         }}/> {item.flight_mode}
-                                                        </>
+                                                })}
+                                                className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors"
+                                            >
+                                                <Tune className="w-4 h-4" />
+                                                <span className="underline">TUNE</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            onClick={() => props.send(item.addr, {
+                                                method_name: "takeoff",
+                                                args: {}
+                                            })}
+                                            className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 shadow-sm"
+                                            title="Takeoff"
+                                        >
+                                            <FlightTakeoffIcon className="w-5 h-5" />
+                                        </button>
+                                        
+                                        <button
+                                            onClick={() => {
+                                                props.send(
+                                                    item.addr,
+                                                    {
+                                                        method_name: "led",
+                                                        args: {
+                                                            r: 255,
+                                                            g: 255,
+                                                            b: 255,
+                                                            effect: "flash"
+                                                        }
                                                     }
-                                                    <Tune fontSize="small"
-                                                          sx={{marginRight: 1, marginLeft: 2}}/>
-                                                    <Typography sx={{textDecoration: "underline"}} onClick={() =>
-                                                        navigate("/tune", {
-                                                            state: {
-                                                                addr: item.addr,
-                                                                name: item.name
-                                                            }
-                                                        })}>TUNE</Typography>
-                                                </Box>
-                                            }
-                                        />
-                                        <ListItemSecondaryAction>
-                                            <IconButton edge="end" color="primary" style={{marginRight: '8px'}}
-                                                        onClick={() => props.send(item.addr, {
-                                                            method_name: "takeoff",
-                                                            args: {}
-                                                        })}>
-                                                <FlightTakeoffIcon/>
-                                            </IconButton>
-
-                                            <IconButton edge="end" color="primary" style={{marginRight: '4px'}}
-                                                        onClick={() => {
-                                                            props.send(
-                                                                item.addr,
-                                                                {
-                                                                    method_name: "led",
-                                                                    args: {
-                                                                        r: 255,
-                                                                        g: 255,
-                                                                        b: 255,
-                                                                        effect: "flash"
-                                                                    }
-                                                                }
-                                                            )
-                                                        }}>
-                                                <FlashOnIcon/>
-                                            </IconButton>
-                                        </ListItemSecondaryAction>
-                                    </ListItem>
-                                    {advancedView == item.addr && <Grid sx={{padding: 2}} container>
-                                        <Grid item sx={{display: "flex"}}>
-                                                <LocationOn/>
-                                            <Typography>
-                                                X: {item.x.toFixed(3)} Y: {item.y.toFixed(3)} Z: {item.z.toFixed(3)}
-                                            </Typography>
-                                        </Grid>
-                                        <Grid item sx={{display: "flex"}}>
-                                                <ColorLens/>
-                                            <Typography>
-                                                RGB: {item.color.toString()}
-                                            </Typography>
-                                        </Grid>
-                                    </Grid>}
-                                </Paper>
-                            ))
-                        }
-                    </List>
-                    {props.copters.length == 0 && <Typography align="center">No connected copters</Typography>}
-                    <Box height={props.selected.length >= 1 ? 120 : 40}/>
-                </Box>
-            </Box>
+                                                )
+                                            }}
+                                            className="p-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors duration-200 shadow-sm"
+                                            title="Flash LED"
+                                        >
+                                            <FlashOnIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {advancedView == item.addr && (
+                                    <div className="mt-4 pt-4 border-t border-gray-200">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                                <LocationOn className="w-4 h-4 text-blue-500" />
+                                                <span>
+                                                    X: {item.x.toFixed(3)} Y: {item.y.toFixed(3)} Z: {item.z.toFixed(3)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                                <ColorLens className="w-4 h-4 text-purple-500" />
+                                                <span>RGB: {item.color.toString()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                
+                {props.copters.length == 0 && (
+                    <div className="flex flex-col items-center justify-center py-16">
+                        <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Нет подключенных коптеров</h3>
+                        <p className="text-gray-500 text-center">Проверьте подключение к сети и попробуйте обновить страницу</p>
+                    </div>
+                )}
+                
+                <div className={`${props.selected.length >= 1 ? 'h-32' : 'h-10'}`} />
+            </div>
+            
             {props.selected.length >= 1 && (
-                <BottomToolbar handleUnselect={handleUnselect} selected={props.selected}/>
+                <BottomToolbar 
+                    handleUnselect={handleUnselect} 
+                    handleSelectAll={handleSelectAll}
+                    selected={props.selected}
+                />
             )}
-        </>
+        </div>
     );
 }

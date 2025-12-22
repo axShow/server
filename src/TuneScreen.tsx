@@ -69,7 +69,7 @@ interface TuningData {
 export default function TuneScreen(props: TuneScreenProps) {
     const location = useLocation()
     const navigate = useNavigate()
-    const [startData, setStartData] = useState<TuningData | null>(null)
+    const [_startData, setStartData] = useState<TuningData | null>(null)
     const [modifiedData, setModifiedData] = useState<TuningData | null>(null)
     useEffect(() => {
         props.send(location.state.addr, {method_name: "get_tune_params"}).then(data => {

@@ -11,7 +11,7 @@ interface ShowScreenProps {
 
 export default function ShowScreen(props: ShowScreenProps) {
     const [value, setValue] = React.useState('1');
-    const handleChange = (event: React.SyntheticEvent, newValue: string) => {
+    const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
         setValue(newValue);
     };
     return (
