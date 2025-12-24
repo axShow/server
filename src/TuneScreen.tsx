@@ -1,43 +1,9 @@
-import {
-    Box, Button,
-    Checkbox,
-    CircularProgress,
-    FormControlLabel,
-    FormGroup, Grid,
-    IconButton,
-    Paper,
-    Stack, TextField,
-    Typography
-} from "@mui/material";
-import {Query, Response} from "./App.tsx";
-import {useLocation, useNavigate} from "react-router-dom";
-import {ArrowBack} from "@mui/icons-material";
 import React, {Fragment, useEffect, useState} from "react";
+import {useLocation, useNavigate} from "react-router-dom";
+import {get_drone_data, set_drone_data} from "./utils/drone_api.ts";
+import {toast} from "react-toastify";
 
-interface TuneScreenProps {
-    send: (addr: string, query: Query) => Promise<Response>
-    show_snack: (msg: string) => void
-}
 
-/*
-* Если коптер нестабильно удерживает позицию по VPE, попробуйте увеличить коэффициенты P PID-регулятора по скорости – параметры MPC_XY_VEL_P и MPC_Z_VEL_P.
-* Если коптер нестабильно удерживает высоту, попробуйте увеличить коэффициент MPC_Z_VEL_P или лучше подобрать газ висения – MPC_THR_HOVER.
-* ----Настройка коэффициента P----
-* Коэффициент P (пропорциональный) используется для минимизации ошибки отслеживания и отвечает за скорость отклика, по этому должен быть установлен как можно выше, но без осцилляций.
-* При настройке коэффициента P пользуйтесь двумя основными наблюдениями:
-* - Если P слишком большой: вы увидите высокочастотные осцилляции.
-* - Если P слишком маленький: Аппарат медленно реагирует на входящее управление
-* В режиме ACRO аппарат будет постоянно дрейфовать и вам нужно будет его корректировать, чтобы сохранить его уровень.
-* -----Настройка коэффициента D----
-* Коэффициент D (дифференциальный) используется для демпфирования. Этот коэффициент должен быть как можно выше, но таким образом, что бы не было "перестрелов" по управлению.
-* При настройке коэффициента D пользуйтесь двумя основными наблюдениями:
-* - Если D слишком большой: моторы могут подергиваться и сильно нагреваться во время полета, поскольку коэффициент D увеличивает шумы управления.
-* - Если D слишком маленький: возникнут "перестрелы" по входящему управляющему сигналу.
-* ----Настройка коэффициента I----
-* Коэффициент I сохраняет "воспоминания" об ошибке. Это значит, что элемент I увеличивается в случае, если желаемая скорость не устанавливается в течении некоторого времени. Этот параметр важен для режима ACRO, а также оказывает достаточно сильное влияние на режимы POSITION и OFFBOARD.
-* - Если I слишком большой: вы можете увидеть медленные осцилляции
-* - Если I слишком маленький: можно заметить ошибку по выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это характеризуется тем, что на графиках желаемая скорость длительное время отличается от фактической.
-* */
 interface LpeFuses {
     GPS: boolean,
     OpticalFlow: boolean,
@@ -66,216 +32,287 @@ interface TuningData {
     coefficients: Coefficients
 }
 
-export default function TuneScreen(props: TuneScreenProps) {
-    const location = useLocation()
-    const navigate = useNavigate()
-    const [_startData, setStartData] = useState<TuningData | null>(null)
-    const [modifiedData, setModifiedData] = useState<TuningData | null>(null)
-    useEffect(() => {
-        props.send(location.state.addr, {method_name: "get_tune_params"}).then(data => {
-                if (!data.result.result) {
-                    props.show_snack("Error retreiving params: " + data.result.details)
-                    return
-                }
-                setStartData(data.result.payload as TuningData)
-                setModifiedData(data.result.payload as TuningData)
-                console.log(data.result.payload)
-            }
-        )
-    }, []);
-    const applyParams = async () => {
-        const result = await props.send(location.state.addr, {method_name: "set_tune_params", args: modifiedData})
-        if (result.result.result) {
-            props.show_snack("Succesfully applied!")
-        }
-        else {
-            props.show_snack("Error when applying: " + result.result.details)
-        }
-    }
-    const handleChangeLPE = (event: React.ChangeEvent<HTMLInputElement>) => {
-        let data = modifiedData
-        if (data === null) return
-        data.lpe_fusion[event.target.name as keyof LpeFuses] = event.target.checked
-        setModifiedData(data)
-    }
-    const setCoeffValue = (event: React.ChangeEvent<HTMLInputElement>) => {
-        let data = modifiedData
-        if (data === null) return
-        data.coefficients[event.target.name as keyof Coefficients] = Number(event.target.value)
-        setModifiedData(data)
-    }
-    return (<Fragment>
-        <Box
-            sx={{
-                display: 'flex',
-                flexDirection: 'column'
-            }}
-        >
-            <Stack direction={"row"} margin={1} alignItems={"center"}>
-                <IconButton onClick={() => navigate(-1)}>
-                    <ArrowBack/>
-                </IconButton>
-                <Typography marginLeft={1} variant={"h5"}>Tune copter "{location.state.name}"</Typography>
-            </Stack>
-            {modifiedData ? <Box>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>P coefficient</Typography>
-                    <Typography marginLeft={2} gutterBottom>Коэффициент P (пропорциональный) используется для
-                        минимизации ошибки
-                        отслеживания и отвечает за скорость отклика, по этому должен быть установлен как можно выше,
-                        но
-                        без
-                        осцилляций.</Typography>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если P слишком большой: вы увидите высокочастотные осцилляции.
-                    </Typography>
-                    <br/>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если P слишком маленький: Аппарат медленно реагирует на входящее управление, а в режиме
-                        ACRO
-                        аппарат будет постоянно дрейфовать и вам нужно будет его корректировать, чтобы
-                        сохранить его уровень.
-                    </Typography>
-                    <Grid sx={{marginTop: 2}} container spacing={2}>
-                        <Grid item xs={2}>
-                    <TextField label="ROLLRATE" type={"number"} value={modifiedData.coefficients.MC_ROLLRATE_P}
-                               InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                               variant="outlined" onChange={setCoeffValue} name={"MC_ROLLRATE_P"}/>
-                        </Grid>
-                        <Grid item xs={2}>
-                    <TextField label="PITCHRATE" type={"number"} value={modifiedData.coefficients.MC_PITCHRATE_P}
-                               InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                               variant="outlined" onChange={setCoeffValue} name={"MC_PITCHRATE_P"}/>
-                        </Grid>
-                    </Grid>
-                </Paper>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>D coefficient</Typography>
-                    <Typography marginLeft={2} gutterBottom>Коэффициент D (дифференциальный) используется для
-                        демпфирования. Этот
-                        коэффициент должен быть как можно выше, но таким образом, что бы не было "перестрелов" по
-                        управлению.</Typography>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если D слишком большой: моторы могут подергиваться и сильно нагреваться во время полета,
-                        поскольку
-                        коэффициент D увеличивает шумы управления.
-                    </Typography>
-                    <br/>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если D слишком маленький: возникнут "перестрелы" по входящему управляющему сигналу.
-                    </Typography>
-                    <Grid sx={{marginTop: 2}} container spacing={2}>
-                        <Grid item xs={2}>
-                            <TextField label="ROLLRATE" type={"number"} value={modifiedData.coefficients.MC_ROLLRATE_D}
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       variant="outlined" onChange={setCoeffValue} name={"MC_ROLLRATE_D"}/>
-                        </Grid>
-                        <Grid item xs={2}>
-                            <TextField label="PITCHRATE" type={"number"}
-                                       value={modifiedData.coefficients.MC_PITCHRATE_D}
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       variant="outlined" onChange={setCoeffValue} name={"MC_PITCHRATE_D"}/>
-                        </Grid>
-                    </Grid>
-                </Paper>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>I coefficient</Typography>
-                    <Typography marginLeft={2} gutterBottom>Коэффициент I сохраняет "воспоминания" об ошибке. Это
-                        значит, что элемент I
-                        увеличивается в случае, если желаемая скорость не устанавливается в течении некоторого
-                        времени.
-                        Этот
-                        параметр важен для режима ACRO, а также оказывает достаточно сильное влияние на режимы
-                        POSITION
-                        и
-                        OFFBOARD.</Typography>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если I слишком большой: вы можете увидеть медленные осцилляции
-                    </Typography>
-                    <br/>
-                    <Typography variant={"caption"} marginLeft={3}>
-                        - Если I слишком маленький: можно заметить ошибку по
-                        выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это
-                        характеризуется тем, что на графиках желаемая скорость длительное время отличается от
-                        фактической.
-                    </Typography>
-                    <Grid sx={{marginTop: 2}} container spacing={2}>
-                        <Grid item xs={2}>
-                            <TextField label="ROLLRATE" type={"number"}
-                                       value={modifiedData.coefficients.MC_ROLLRATE_I}
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       variant="outlined" onChange={setCoeffValue} name={"MC_ROLLRATE_I"}/>
-                        </Grid>
-                        <Grid item xs={2}>
-                            <TextField label="PITCHRATE" type={"number"}
-                                       value={modifiedData.coefficients.MC_PITCHRATE_I}
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       variant="outlined" onChange={setCoeffValue} name={"MC_PITCHRATE_I"}/>
-                        </Grid>
-                    </Grid>
-                </Paper>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>Holding position</Typography>
-                    <Typography marginLeft={2} gutterBottom>
-                        Если коптер нестабильно удерживает позицию в POSCTL и OFFBOARD, попробуйте изменить эти
-                        коэффициенты
-                    </Typography>
-                    <Grid sx={{marginTop: 2}} container spacing={2}>
-                        <Grid item xs={2}>
-                            <TextField label={"XY_VEL_P"} type={"number"}
-                                       value={modifiedData.coefficients.MPC_XY_VEL_P} variant="outlined"
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       onChange={setCoeffValue} name={"MPC_XY_VEL_P"}/>
-                        </Grid>
-                        <Grid item xs={2}>
-                            <TextField label={"Z_VEL_P"} type={"number"}
-                                       value={modifiedData.coefficients.MPC_Z_VEL_P} variant="outlined"
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       onChange={setCoeffValue} name={"MPC_Z_VEL_P"}/>
-                        </Grid>
-                        <Grid item xs={2}>
-                            <TextField label={"THR_HOVER"} type={"number"}
-                                       value={modifiedData.coefficients.MPC_THR_HOVER} variant="outlined"
-                                       InputProps={{ inputProps: { min: 0.001, max: 1, step: 0.001 } }}
-                                       onChange={setCoeffValue} name={"MPC_THR_HOVER"}/>
-                        </Grid>
-                    </Grid>
-                </Paper>
-                <Paper sx={{margin: 2, padding: 2}}>
-                    <Typography variant={"h6"} gutterBottom>LPE Fusion</Typography>
-                    <Typography marginLeft={2} gutterBottom>
-                        Параметры по которым полетный контроллер рассчитывает локальную позицию
-                    </Typography>
-                    <FormGroup row>
-                        {Object.entries(modifiedData.lpe_fusion).map(([obj]) => {
-                                return <FormControlLabel key={obj}
-                                                         control={<Checkbox
-                                                             checked={modifiedData.lpe_fusion[obj as keyof LpeFuses]}
-                                                             name={obj}
-                                                             onChange={handleChangeLPE}/>}
-                                                         label={obj}/>
-                            }
-                        )}
-                    </FormGroup>
-                </Paper>
-                <Button onClick={applyParams}>Apply</Button>
-            </Box> :
-                <Box
-                sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: "center",
-                justifyContent: "center",
-                alignContent: "center",
-                height: "80vh"
-            }}
-        >
+export default function TuneScreen() {
+    const location = useLocation() as any;
+    const navigate = useNavigate();
+    const [_startData, setStartData] = useState<TuningData | null>(null);
+    const [modifiedData, setModifiedData] = useState<TuningData | null>(null);
+    const [loadingSave, setLoading] = useState<boolean>(false);
 
-            <CircularProgress/>
-            <Typography marginTop={2}>Retrieving parameters...</Typography>
-        </Box>}
-    </Box>
-    <Box height={60}/>
-</Fragment>
-)
+    useEffect(() => {
+        get_drone_data(location.state.addr, "tune_params").then(data => {
+            setStartData(data as TuningData);
+            setModifiedData(data as TuningData);
+            console.log(data);
+        }).catch((e) => {
+            console.error(e);
+            toast.error("Не удалось получить параметры");
+        });
+    }, [location.state]);
+
+    const applyParams = async () => {
+        if (modifiedData === null) return;
+        try {
+            setLoading(true);
+            const response = await set_drone_data(location.state.addr, "tune_params", modifiedData);
+            if ((response as any).result) {
+                toast.success("Настройки успешно применены");
+            } else {
+                toast.error("Ошибка при применении настроек");
+            }
+            setLoading(false);
+        } catch (e) {
+            console.error(e);
+            toast.error("Ошибка при отправке параметров");
+        }
+    };
+
+    const handleChangeLPE = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const name = event.target.name as keyof LpeFuses;
+        const checked = event.target.checked;
+        setModifiedData(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                lpe_fusion: {
+                    ...prev.lpe_fusion,
+                    [name]: checked
+                }
+            } as TuningData;
+        });
+    };
+
+    const setCoeffValue = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const name = event.target.name as keyof Coefficients;
+        const value = Number(event.target.value);
+        setModifiedData(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                coefficients: {
+                    ...prev.coefficients,
+                    [name]: value
+                }
+            } as TuningData;
+        });
+    };
+
+    return (
+        <Fragment>
+            <div className="flex flex-col h-screen bg-gray-50">
+                <div className="flex-1 overflow-y-auto p-4">
+                    <div className="space-y-4">
+                        {/* Header card, в стиле ListScreen */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center space-x-3">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-2 rounded hover:bg-gray-100"
+                                aria-label="back"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+
+                            <div className="flex-1">
+                                <h1 className="text-lg font-semibold">Настройка дрона "{location.state?.name}"</h1>
+                                <p className="text-sm text-gray-500">Настройка коэффициентов полёта и LPE fusion</p>
+                            </div>
+
+                            <div>
+                                <button disabled={loadingSave} onClick={applyParams} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-300">Сохранить</button>
+                            </div>
+                        </div>
+
+                        {/* Content: карточки с параметрами (оставлены как есть, уже в стиле карточек) */}
+                        {modifiedData ? (
+                            <div>
+                                {/* P coefficient */}
+                                <div className="bg-white rounded shadow p-4 mb-4">
+                                    <h2 className="text-lg font-semibold mb-2">P coefficient</h2>
+                                    <p className="text-sm text-gray-600 mb-2">Коэффициент P (пропорциональный) используется для минимизации ошибки отслеживания и отвечает за скорость отклика, по этому должен быть установлен как можно выше, но без осцилляций.</p>
+                                    <p className="text-xs text-gray-500 mb-3">- Если P слишком большой: вы увидите высокочастотные осцилляции.</p>
+                                    <p className="text-xs text-gray-500 mb-3">- Если P слишком маленький: Аппарат медленно реагирует на входящее управление, а в режиме ACRO аппарат будет постоянно дрейфовать и вам нужно будет его корректировать, чтобы сохранить его уровень.</p>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">ROLLRATE</label>
+                                            <input
+                                                type="number"
+                                                name="MC_ROLLRATE_P"
+                                                value={modifiedData.coefficients.MC_ROLLRATE_P}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">PITCHRATE</label>
+                                            <input
+                                                type="number"
+                                                name="MC_PITCHRATE_P"
+                                                value={modifiedData.coefficients.MC_PITCHRATE_P}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* D coefficient */}
+                                <div className="bg-white rounded shadow p-4 mb-4">
+                                    <h2 className="text-lg font-semibold mb-2">D coefficient</h2>
+                                    <p className="text-sm text-gray-600 mb-2">Коэффициент D (дифференциальный) используется для демпфирования. Этот коэффициент должен быть как можно выше, но таким образом, что бы не было "перестрелов" по управлению.</p>
+                                    <p className="text-xs text-gray-500 mb-3">- Если D слишком большой: моторы могут подергиваться и сильно нагреваться во время полета, поскольку коэффициент D увеличивает шумы управления.</p>
+                                    <p className="text-xs text-gray-500 mb-3">- Если D слишком маленький: возникнут "перестрелы" по входящему управляющему сигналу.</p>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">ROLLRATE</label>
+                                            <input
+                                                type="number"
+                                                name="MC_ROLLRATE_D"
+                                                value={modifiedData.coefficients.MC_ROLLRATE_D}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">PITCHRATE</label>
+                                            <input
+                                                type="number"
+                                                name="MC_PITCHRATE_D"
+                                                value={modifiedData.coefficients.MC_PITCHRATE_D}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* I coefficient */}
+                                <div className="bg-white rounded shadow p-4 mb-4">
+                                    <h2 className="text-lg font-semibold mb-2">I coefficient</h2>
+                                    <p className="text-sm text-gray-600 mb-2">Коэффициент I сохраняет "воспоминания" об ошибке. Это значит, что элемент I увеличивается в случае, если желаемая скорость не устанавливается в течении некоторого времени. Этот параметр важен для режима ACRO, а также оказывает достаточно сильное влияние на режимы POSITION и OFFBOARD.</p>
+                                    <p className="text-xs text-gray-500 mb-3">- Если I слишком большой: вы можете увидеть медленные осцилляции</p>
+                                    <p className="text-xs text-gray-500 mb-3">- Если I слишком маленький: можно заметить ошибку по выполнению управляющего воздействия. Также заниженный коэффициент I заметен на логах, это характеризуется тем, что на графиках желаемая скорость длительное время отличается от фактической.</p>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">ROLLRATE</label>
+                                            <input
+                                                type="number"
+                                                name="MC_ROLLRATE_I"
+                                                value={modifiedData.coefficients.MC_ROLLRATE_I}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">PITCHRATE</label>
+                                            <input
+                                                type="number"
+                                                name="MC_PITCHRATE_I"
+                                                value={modifiedData.coefficients.MC_PITCHRATE_I}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Holding position */}
+                                <div className="bg-white rounded shadow p-4 mb-4">
+                                    <h2 className="text-lg font-semibold mb-2">Holding position</h2>
+                                    <p className="text-sm text-gray-600 mb-2">Если коптер нестабильно удерживает позицию в POSCTL и OFFBOARD, попробуйте изменить эти коэффициенты</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">XY_VEL_P</label>
+                                            <input
+                                                type="number"
+                                                name="MPC_XY_VEL_P"
+                                                value={modifiedData.coefficients.MPC_XY_VEL_P}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Z_VEL_P</label>
+                                            <input
+                                                type="number"
+                                                name="MPC_Z_VEL_P"
+                                                value={modifiedData.coefficients.MPC_Z_VEL_P}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">THR_HOVER</label>
+                                            <input
+                                                type="number"
+                                                name="MPC_THR_HOVER"
+                                                value={modifiedData.coefficients.MPC_THR_HOVER}
+                                                onChange={setCoeffValue}
+                                                step={0.001}
+                                                min={0.001}
+                                                max={1}
+                                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* LPE Fusion */}
+                                <div className="bg-white rounded shadow p-4 mb-4">
+                                    <h2 className="text-lg font-semibold mb-2">LPE Fusion</h2>
+                                    <p className="text-sm text-gray-600 mb-2">Параметры по которым полетный контроллер рассчитывает локальную позицию</p>
+                                    <div className="flex flex-wrap gap-3 mt-3">
+                                        {Object.entries(modifiedData.lpe_fusion).map(([key, val]) => (
+                                            <label key={key} className="inline-flex items-center gap-2 border border-gray-200 rounded px-3 py-2 bg-gray-50">
+                                                <input type="checkbox" name={key} checked={val as boolean} onChange={handleChangeLPE} className="w-4 h-4" />
+                                                <span className="text-sm text-gray-700">{key}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-[80vh]">
+                                <svg className="animate-spin h-8 w-8 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                <p className="mt-2 text-gray-600">Retrieving parameters...</p>
+                            </div>
+                        )}
+
+                        <div className="h-16" />
+                    </div>
+                </div>
+            </div>
+        </Fragment>
+    );
 }

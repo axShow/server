@@ -12,7 +12,8 @@ import {Check} from "@mui/icons-material";
 import ConnectWifiStep from "./ConnectWifiStep.tsx";
 import SettingUpOffboardStep from "./SettingUpOffboardStep.tsx";
 import SelectingCopterStep from "./SelectingCopterStep.tsx";
-import {CopterData, Response, send_for_response, send_message_to_copter} from "./App.tsx";
+import {send_for_response, send_message_to_copter} from "./App.tsx";
+import {CopterData, Response} from "./utils/types.ts";
 
 const QontoConnector = styled(StepConnector)(({theme}) => ({
     [`&.${stepConnectorClasses.alternativeLabel}`]: {

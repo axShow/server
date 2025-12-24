@@ -1,5 +1,5 @@
 import {Box, Divider, IconButton, List, ListItem, Paper, Typography} from "@mui/material";
-import {CopterData} from "./App.tsx";
+import {CopterData} from "./utils/types.ts";
 import {ArrowRight} from "@mui/icons-material";
 import React from "react";
 

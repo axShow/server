@@ -9,7 +9,7 @@
 mod files_parser;
 
 use mdns_sd::{ServiceDaemon, ServiceInfo};
-use std::net::{IpAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, UdpSocket};
 use std::{fs, io, thread};
 use std::io::{Read, Write};
 use std::sync::{Arc};
@@ -40,9 +40,6 @@ use rand::{random, Rng};
 use simpdiscoverylib::BeaconSender;
 // use crate::setup::{is_clover_connected};
 
-const BEACON_SERVICE_PORT: u16 = 6900;
-const BEACON_SERVICE_NAME: &str = "CopterShow";
-
 lazy_static! {
     static ref TABLE: Arc<DashMap<String, CopterData>> = Arc::new(DashMap::new());
     static ref CHANNELS: Arc<DashMap<String, Sender<InternalPass>>> = Arc::new(DashMap::new());
@@ -61,7 +58,9 @@ struct CopterData {
     #[serde(default = "default_flight_mode")]
     flight_mode: String,
     #[serde(default = "default_controller_state")]
-    controller_state: String,
+    state: String,
+    #[serde(default = "default_controller_status")]
+    status: String,
     #[serde(default = "Vec::new")]
     responses: Vec<Response>,
     x: f32,
@@ -115,58 +114,39 @@ fn default_battery() -> Option<f32> {
 }
 
 fn default_flight_mode() -> String {
-    "error".to_string()
+    "ERROR".to_string()
 }
 
+fn default_controller_status() -> String {
+    "ERROR".to_string()
+}
 fn default_controller_state() -> String {
-    "error".to_string()
+    "EMRG".to_string()
 }
 
-fn parse_raw(msg: &str) -> ResultJson<CopterData> {
-    let data: CopterData = serde_json::from_str(msg)?;
-    Ok(data)
-}
+fn decode_msg(data: &[u8]) -> Option<String> {
+    let mut start = 0;
+    let end = data.len();
 
-fn parse_type(msg: &str) -> ResultJson<Receive> {
-    let data: Receive = serde_json::from_str(msg)?;
-    Ok(data)
-}
-
-
-fn send_msg(stream: &mut TcpStream, msg: &str) -> std::io::Result<()> {
-    let msg = msg.encode_utf16().collect::<Vec<u16>>();
-    let len = (msg.len() * 2) as u32; // Умножаем на 2, потому что каждый символ занимает 2 байта в UTF-16
-    let len_bytes = len.to_be_bytes();
-    stream.write_all(&len_bytes)?;
-
-    for &c in &msg {
-        stream.write_u16::<LittleEndian>(c)?; // Записываем каждый символ как 16-битное число в LittleEndian
+    if data.len() >= 4 {
+        let prefix_len = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
+        if prefix_len == data.len() - 4 {
+            start = 4;
+        }
     }
-    Ok(())
-}
 
-
-fn recv_msg(stream: &mut TcpStream) -> std::io::Result<String> {
-    let mut len_bytes = [0; 4];
-    stream.read_exact(&mut len_bytes)?;
-    let len = u32::from_be_bytes(len_bytes) as usize;
-
-    let mut msg = vec![0; len];
-    stream.read_exact(&mut msg)?;
-
-    let mut rdr = Cursor::new(msg);
+    let mut rdr = Cursor::new(&data[start..end]);
     let mut u16_data = Vec::new();
     while let Ok(val) = rdr.read_u16::<LittleEndian>() {
         u16_data.push(val);
     }
 
-    let mut data: String = u16_data.iter().filter_map(|&c| char::from_u32(c as u32)).collect();
-    if data.starts_with('\u{feff}') { // Если строка начинается с BOM
-        data = data.chars().skip(1).collect(); // Удаляем BOM
+    let mut s: String = u16_data.iter().filter_map(|&c| char::from_u32(c as u32)).collect();
+    if s.starts_with('\u{feff}') {
+        s = s.chars().skip(1).collect();
     }
-    Ok(data)
+    Some(s)
 }
-
 
 fn main() {
     std::env::set_var("RUST_LOG", "axshow=trace");
@@ -178,82 +158,46 @@ fn main() {
         vec![("lo".to_string(), IpAddr::V4("127.0.0.1".parse().unwrap()))]
     });
     
-    let listener = TcpListener::bind("0.0.0.0:".to_owned() + &*BEACON_SERVICE_PORT.to_string()).unwrap();
-    info!("Listening on: {}", listener.local_addr().unwrap());
-    warn!("Broadcast set port to: {}", BEACON_SERVICE_PORT);
-    
     // Логируем все найденные IP-адреса
     for (interface, ip) in &local_ips {
         warn!("Found interface {} with IP: {}", interface, ip);
     }
     
     thread::spawn(move || {
-        for stream in listener.incoming() {
-            let (tx, rx): (Sender<InternalPass>, Receiver<InternalPass>) = channel();
-            match stream {
-                Ok(stream) => {
-                    thread::spawn(move || {
-                        handle_client(stream, (tx, rx));
-                    });
+        let socket = UdpSocket::bind("0.0.0.0:9009").expect("couldn't bind to address");
+        info!("Listening on 0.0.0.0:9009");
+        let mut buf = [0; 65535];
+        loop {
+            match socket.recv_from(&mut buf) {
+                Ok((amt, src)) => {
+                    let buf = &mut buf[..amt];
+                    let s = match decode_msg(buf) {
+                        Some(v) => v,
+                        None => {
+                            warn!("Failed to decode message from {}", src);
+                            continue;
+                        }
+                    };
+                    match serde_json::from_str::<CopterData>(&s) {
+                        Ok(mut data) => {
+                            data.addr = src.ip().to_string();
+                            data.last_timestamp = std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+                            TABLE.insert(data.addr.clone(), data);
+                        },
+                        Err(e) => {
+                            warn!("Failed to parse CopterData: {}", e);
+                        }
+                    }
+                },
+                Err(e) => {
+                    warn!("couldn't receive a datagram: {}", e);
                 }
-                _ => {}
             }
         }
     });
-    thread::spawn(move || {
-        if let Ok(beacon) = BeaconSender::new(BEACON_SERVICE_PORT,
-                                              BEACON_SERVICE_NAME.as_bytes(), 31255) {
-            loop {
-                beacon.send_loop(Duration::from_secs(1)).unwrap_or({});
-                warn!("Error in broadcasting!");
-            }
-        }
-    });
-    
-    // Create a daemon
-    let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-    
-    // Create service Info for each network interface
-    let service_type = "_cshow._tcp.local.";
-    let instance_name = format!("server-{}", rand::thread_rng().gen::<u8>());
-    let port = 6900;
-    let properties = [("desc", "AXShow Controller")];
-    
-    let mut registered_services = Vec::new();
-    
-    for (interface, ip) in local_ips {
-        let ip_str = ip.to_string();
-        let host_name = format!("{}._cshow._tcp.local.", instance_name);
-        
-        let my_service = ServiceInfo::new(
-            service_type,
-            &*instance_name,
-            &*host_name,
-            ip_str,
-            port,
-            &properties[..],
-        ).unwrap();
-        
-        // Register with the daemon, which publishes the service.
-        match mdns.register(my_service.clone()) {
-            Ok(_) => {
-                info!("Successfully registered mdns service on interface {} with IP {}", interface, ip);
-                registered_services.push((instance_name.clone(), service_type.to_string()));
-            }
-            Err(e) => {
-                error!("Failed to register mdns service on interface {} with IP {}: {:?}", interface, ip, e);
-            }
-        }
-    }
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
-
-    // while running.load(Ordering::SeqCst) {
-    //     send_action("clover1", "take_off");
-    //     Info!("Current table is: {:?}", get_connected_clients());
-    //     sleep(Duration::from_secs(1));
-    // }
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![send_action, get_connected_clients, send_for_response,//wait_for,
@@ -263,102 +207,11 @@ fn main() {
         .run(move |_app_handle, event| match event {
             tauri::RunEvent::ExitRequested { .. } => {
                 sleep(Duration::from_secs(1));
-                // Unregister all services
-                for (instance_name, service_type) in &registered_services {
-                    let _receiver = mdns.unregister(&*format!("{}.{}", instance_name, service_type));
-                    // Можно добавить обработку статуса удаления если нужно
-                    // if let Ok(status) = receiver.recv() {
-                    //     info!("Service unregistered with status: {:?}", status);
-                    // }
-                }
-                mdns.shutdown().expect("Error shutting down");
+
                 warn!("Bye!");
             }
             _ => {}
         });
-
-    // Gracefully shutdown the daemon
-}
-
-fn handle_client(mut stream: TcpStream, channel: (Sender<InternalPass>, Receiver<InternalPass>)) {
-    let ip = stream.peer_addr().unwrap().to_string();
-    info!("Received one request from {}", ip);
-    // let mut name: String = "".to_string();
-    //TABLE.insert(ip.clone(), None);
-    loop {
-        match channel.1.try_recv() {
-            Ok(data) => {
-                info!("received {:?} for {}", data.query, data.addr_name);
-                let send = Send::Query { 0: data.query };
-                send_msg(&mut stream, &serde_json::to_string(&send).unwrap_or("Error".to_string())).unwrap_or_default();
-            }
-            Err(_) => {}
-        }
-        match recv_msg(&mut stream) {
-            Ok(msg_str) => {
-                let json: ResultJson<Receive> = serde_json::from_str(&msg_str);
-                match json {
-                    Ok(json_data) => {
-                        match json_data {
-                            Receive::Info(mut info) => {
-                                // debug!("Data received from client is: {info:?}");
-                                let data_name = info.name.clone();
-                                // name = data_name;
-                                let data = TABLE.get_mut(&ip.clone());
-                                // debug!("{data:?}");
-                                if !CHANNELS.contains_key(&ip.clone()) { CHANNELS.insert(ip.clone(), channel.0.to_owned()); }
-                                match data {
-                                    Some(mut copt_data) => {
-                                        copt_data.addr = ip.clone();
-                                        copt_data.battery = info.battery;
-                                        copt_data.controller_state = info.controller_state;
-                                        copt_data.flight_mode = info.flight_mode;
-                                        copt_data.x = info.x;
-                                        copt_data.y = info.y;
-                                        copt_data.z = info.z;
-                                        copt_data.color = info.color;
-                                        // info!("{:?}", copt_data.responses);
-                                    }
-                                    None => {
-                                        info.addr = ip.clone();
-                                        TABLE.insert(ip.clone(), info);
-                                    }
-                                }
-                            }
-                            Receive::Response(response) => {
-                                let mut data = TABLE.get_mut(&ip.clone()).unwrap();
-                                debug!("{response:?}");
-                                data.responses.push(response);
-                            }
-                            Receive::Heartbeat(response) => {
-                                let data = TABLE.get_mut(&ip.clone());
-                                match data {
-                                    Some(mut copt_data) => {
-                                        copt_data.last_timestamp = response.timestamp;
-                                        copt_data.time_offset = response.timestamp - std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-                                    }
-                                    _ => {}
-                                }
-                                let heartbeat = Send::Heartbeat { 0: Heartbeat { timestamp: std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64 } };
-                                send_msg(&mut stream, &serde_json::to_string(&heartbeat).unwrap()).unwrap_or_default();
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to parse message: {:?}", e);
-                    }
-                }
-            }
-            Err(_) => {
-                break;
-            }
-        }
-    }
-
-    warn!("Disconnected from {}", ip);
-
-    CHANNELS.remove(&ip.clone());
-    TABLE.remove(&ip);
 }
 
 #[tauri::command]

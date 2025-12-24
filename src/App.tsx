@@ -2,7 +2,7 @@ import {useState} from "react";
 import {invoke} from "@tauri-apps/api/tauri";
 import "./App.css";
 import {
-    createTheme, CssBaseline, Snackbar,
+    createTheme, CssBaseline,
     ThemeProvider, useMediaQuery
 } from "@mui/material";
 import React from "react";
@@ -15,32 +15,9 @@ import GenMapScreen from "./GenMapScreen.tsx";
 // import UploadScreen from "./UploadScreen.tsx";
 import TuneScreen from "./TuneScreen.tsx";
 import ShowScreen from "./ShowScreen.tsx";
-
-export interface CopterData {
-    addr: string;
-    name: string;
-    battery?: number | null;
-    flight_mode: string;
-    controller_state: string;
-    x: number;
-    y: number;
-    z: number;
-    color: number[];
-}
-
-export interface Query {
-    method_name: string;
-    args?: any;
-}
-
-export interface Response {
-    id: number;
-    result: {
-        result: boolean;
-        details: string;
-        payload?: unknown
-    };
-}
+import {toast, ToastContainer} from "react-toastify";
+import { useStore } from "./utils/store.ts";
+import { CopterData, Query, Response } from "./utils/types.ts";
 
 export function generateRandomId() {
     return Math.floor(10000000 + Math.random() * (99999999 - 10000000 + 1))
@@ -67,20 +44,22 @@ export async function send_for_response(addr: string, query: Query) {
         })
     }
 function App() {
-    const [copters, setCopters] = useState<CopterData[]>([]);
+    const { copters, setCopters } = useStore();
     const [selected, setSelected] = useState<string[]>([]);
-    const [snack, setSnack] = useState<string>("");
+    function setSnack(message: string) {
+        toast(message);
+    }
     const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
     const theme = React.useMemo(
         () =>
             createTheme({
                 palette: {
-                    mode: prefersDarkMode ? 'dark' : 'light',
+                    mode: 'light',
                 },
             }),
         [prefersDarkMode],
     );
-    document.body.style.backgroundColor = '#00000000';
+    // document.body.style.backgroundColor = '#00000000';
 
     async function update_copters() {
         let data: CopterData[] = (await invoke("get_connected_clients", {}))
@@ -135,17 +114,13 @@ function App() {
                     <Route path="/gen_map" element={<GenMapScreen selected={selected} copters={copters} show_snack={setSnack} send={get_from_copter} />}/>
                     <Route path="/tools" element={<ToolsScreen copters={copters} selected={selected}/>}/>
                     <Route path="/show" element={<ShowScreen copters={copters}/>}/>
-                    <Route path="/tune" element={<TuneScreen send={get_from_copter} show_snack={setSnack}/>}/>
+                    <Route path="/tune" element={<TuneScreen/>}/>
                 </Routes>
 
                 <AppBottomNavigation/>
 
-                <Snackbar
-                    open={snack != ""}
-                    autoHideDuration={3000}
-                    onClose={() => setSnack("")}
-                    message={snack}
-                />
+
+                <ToastContainer position={"bottom-right"}/>
             </BrowserRouter>
             {/*{currentTab == 0 && <SetupScreen/>}*/}
             {/*{currentTab == 1 &&*/}

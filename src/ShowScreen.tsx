@@ -1,29 +1,26 @@
-import React from "react";
-import {Box, Tab} from "@mui/material";
-import {TabContext, TabList, TabPanel} from "@mui/lab";
-import UploadScreen from "./UploadScreen.tsx";
-import {CopterData} from "./App.tsx";
-import RunShowScreen from "./RunShowScreen.tsx";
+import {CopterData} from "./utils/types.ts";
+import ShowTopBar from "./components/show/ShowTopBar.tsx";
+import ShowControlPanel from "./components/show/ShowControlPanel.tsx";
+import ShowViewPanel from "./components/show/ShowViewPanel.tsx";
+import { Drone } from "./components/show/views/UAVView.tsx";
 
 interface ShowScreenProps {
     copters: CopterData[]
 }
 
-export default function ShowScreen(props: ShowScreenProps) {
-    const [value, setValue] = React.useState('1');
-    const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
-        setValue(newValue);
-    };
+export default function ShowScreen({ copters }: ShowScreenProps) {
+
     return (
-        <TabContext value={value}>
-            <Box sx={{borderBottom: 1, borderColor: 'divider'}}>
-                <TabList onChange={handleChange} aria-label="lab API tabs example" centered>
-                    <Tab label="SEND" value="1"/>
-                    <Tab label="RUN" value="2"/>
-                </TabList>
-            </Box>
-            <TabPanel value="1"><UploadScreen copters={props.copters}/></TabPanel>
-            <TabPanel value="2"><RunShowScreen copters={props.copters}/></TabPanel>
-        </TabContext>
+        <div className="flex flex-col h-screen w-full overflow-hidden">
+            <ShowTopBar />
+            <div className="flex flex-1 overflow-hidden">
+                <div className="w-2/3 border-r border-gray-300">
+                    <ShowViewPanel />
+                </div>
+                <div className="w-1/3">
+                    <ShowControlPanel />
+                </div>
+            </div>
+        </div>
     )
 }

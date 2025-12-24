@@ -1,5 +1,5 @@
 import {Box, Button, Typography} from "@mui/material";
-import {CopterData} from "./App.tsx";
+import {CopterData} from "./utils/types.ts";
 import {useEffect, useState} from "react";
 import {listen} from "@tauri-apps/api/event";
 import {invoke} from "@tauri-apps/api/tauri";

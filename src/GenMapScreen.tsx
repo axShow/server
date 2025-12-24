@@ -9,7 +9,7 @@ import {
 } from '@mui/base/Unstable_NumberInput';
 import {FC, useEffect, useState} from "react";
 import {styled} from '@mui/system';
-import {CopterData, Query, Response} from "./App.tsx";
+import {CopterData, Query, Response} from "./utils/types.ts";
 // @ts-ignore
 // import AR from 'js-aruco'; // Assuming js-aruco2 is installed
 var AR = {

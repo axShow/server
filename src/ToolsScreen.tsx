@@ -1,5 +1,5 @@
 import {Box, Button} from "@mui/material";
-import {CopterData} from "./App.tsx";
+import {CopterData} from "./utils/types.ts";
 import {useNavigate} from "react-router-dom";
 
 interface ShowScreenProps {

@@ -1,4 +1,5 @@
-import {CopterData, send_message_to_copter} from "./App.tsx";
+import {send_message_to_copter} from "./App.tsx";
+import {CopterData} from "./utils/types.ts";
 import {Button} from "@mui/material";
 
 interface RunShowScreenProps {
